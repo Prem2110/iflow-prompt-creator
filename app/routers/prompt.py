@@ -15,11 +15,19 @@ router = APIRouter(prefix="/api")
 _SYSTEM = """You are an expert SAP CPI (Cloud Platform Integration) architect.
 
 The user will provide technical documentation, business requirements, screenshots, or notes
-describing an integration scenario. Your job is to produce a complete, ready-to-use SAP CPI
-iFlow configuration prompt that another system will use to build the actual iFlow.
+describing an integration scenario. Produce a concise, ready-to-use SAP CPI iFlow configuration
+prompt that a developer will follow step-by-step to build the iFlow in SAP CPI.
 
 Output ONLY the prompt text - no preamble, no explanation, no markdown code fences.
-Follow this exact structure and include ALL sections - every section is mandatory:
+
+STRICT FORMATTING RULES:
+- Every section below is mandatory.
+- Each numbered step lists ONLY the configuration fields a developer sets in SAP CPI (adapter type, method, URL, headers, XPath, etc.). No background explanations, no general SAP advice.
+- The Important section must contain AT MOST 5 bullet points covering ONLY hard technical constraints specific to this iFlow (e.g. CSRF handling, XPath expressions, adapter choice). Do NOT include general development advice, deployment instructions, timeout recommendations, or credential management guidance.
+- Do NOT include full request/response JSON bodies in the steps — reference field names only when needed for mapping.
+- Keep each step description tight. If a field value is obvious from context (e.g. Content-Type: application/json), list it once and move on.
+
+Output structure:
 
 Create an SAP CPI iFlow with the following configuration exactly as per given flow.
 
@@ -29,42 +37,47 @@ iFlow ID: <value>
 
 Integration Flow Structure:
 
-<step name> -> <step name> -> ... -> End
+<Step> -> <Step> -> ... -> End
 
 1. <Step Name>
 
-<all configuration details>
+<concise configuration — adapter, method, URL, headers, XPath, etc.>
 
 2. <Step Name>
 
-<all configuration details>
+<concise configuration>
 
 ...
 
 Important:
-<key constraints, adapter types, sequencing rules, and notes>
+- <hard constraint 1>
+- <hard constraint 2>
+(max 5 bullets, iFlow-specific only)
 
 Rules:
-- Package ID and iFlow ID are REQUIRED - derive from context if not explicit
-- Integration Flow Structure showing the step sequence is REQUIRED
-- At least one numbered step (1. 2. 3. ...) is REQUIRED
-- The Important section is REQUIRED
-- Extract every relevant detail. Apply sensible SAP CPI defaults where values are missing.
+- Package ID and iFlow ID are REQUIRED — derive from context if not stated explicitly.
+- Integration Flow Structure (the step sequence line) is REQUIRED.
+- At least one numbered step is REQUIRED.
+- The Important section is REQUIRED (max 5 bullets).
 """
 
 _RETRY_SYSTEM = """You are an expert SAP CPI architect fixing an incomplete iFlow prompt.
 
-The previous attempt was missing required sections. You must produce a corrected, complete prompt.
+The previous attempt was missing required sections. Produce a corrected, complete prompt.
 Output ONLY the prompt text - no preamble, no explanation, no markdown code fences.
+
+Keep the output concise — each step lists only the configuration fields a developer sets in SAP CPI.
+The Important section must have AT MOST 5 bullets covering only hard iFlow-specific constraints.
+Do NOT include full JSON bodies, general SAP advice, or deployment guidance.
 
 The prompt MUST contain all of these sections:
 1. "Package ID:" line
 2. "iFlow ID:" line
 3. "Integration Flow Structure:" section with a step sequence
 4. Numbered steps starting from "1."
-5. "Important:" section at the end
+5. "Important:" section (max 5 bullets)
 
-Do not omit any section. If a value cannot be determined from the source, use a clearly labelled placeholder.
+If a value cannot be determined from the source, use a clearly labelled placeholder.
 """
 
 SUFFIX = "\n\nGenerate the SAP CPI iFlow configuration prompt from the content above."
@@ -139,10 +152,7 @@ async def _stream(files: List[UploadFile]) -> AsyncGenerator[str, None]:
 
     user_content = _build_user_content(extracted)
 
-    # Step 2 — authenticate
-    yield _event("step", key="auth", message="Authenticating with SAP AI Core…")
-
-    # Step 3 — generate
+    # Step 2 — generate
     yield _event("step", key="generate", message="Claude is generating the iFlow prompt…")
     try:
         result = await chat_complete(_SYSTEM, user_content)
