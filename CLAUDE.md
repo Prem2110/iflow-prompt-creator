@@ -61,8 +61,9 @@ frontend/src/
 Authentication is OAuth2 client credentials. The token is cached in memory until 30 seconds before expiry. The chat completions endpoint follows the OpenAI-compatible format that SAP AI Core exposes:
 
 ```
-POST {AICORE_BASE_URL}/inference/deployments/{LLM_DEPLOYMENT_ID}/chat/completions
+POST {AICORE_BASE_URL}/inference/deployments/{LLM_DEPLOYMENT_ID}/invoke
 Headers: Authorization: Bearer <token>, AI-Resource-Group: <group>
+Body: {"anthropic_version": "bedrock-2023-05-31", "max_tokens": 4096, "system": "...", "messages": [...]}
 ```
 
 ## Environment variables

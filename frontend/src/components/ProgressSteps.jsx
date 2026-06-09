@@ -1,14 +1,5 @@
 import styles from "./ProgressSteps.module.css";
 
-const STEP_ORDER = ["extract", "auth", "generate", "validate", "retry"];
-
-const ICONS = {
-  pending: null,
-  active:  "spinner",
-  done:    "✓",
-  error:   "✕",
-};
-
 export default function ProgressSteps({ steps }) {
   return (
     <ul className={styles.list}>

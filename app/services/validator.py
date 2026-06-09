@@ -5,8 +5,8 @@ _REQUIRED = {
     "Package ID":               r"Package ID\s*:",
     "iFlow ID":                 r"iFlow ID\s*:",
     "Integration Flow Structure": r"Integration Flow Structure\s*:",
-    "Numbered step":            r"^\s*1\.",
-    "Important section":        r"^Important\s*:",
+    "Numbered step":            r"(?:^|\n)\s*1\s*\.",
+    "Important section":        r"(?:^|\n)\s*Important\s*:",
 }
 
 

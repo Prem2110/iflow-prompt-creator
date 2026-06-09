@@ -1,3 +1,4 @@
+import asyncio
 import logging
 import os
 import time
@@ -7,27 +8,33 @@ import httpx
 logger = logging.getLogger(__name__)
 
 _token_cache: dict = {"token": None, "expires_at": 0}
+_token_lock = asyncio.Lock()
 
 
 async def _get_token() -> str:
     if _token_cache["token"] and time.time() < _token_cache["expires_at"] - 30:
         return _token_cache["token"]
 
-    token_url = f"{os.environ['AICORE_AUTH_URL']}/oauth/token"
-    logger.info("Fetching new SAP AI Core OAuth token")
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(
-            token_url,
-            data={"grant_type": "client_credentials"},
-            auth=(os.environ["AICORE_CLIENT_ID"], os.environ["AICORE_CLIENT_SECRET"]),
-        )
-        resp.raise_for_status()
-        data = resp.json()
+    async with _token_lock:
+        # Double-check after acquiring lock
+        if _token_cache["token"] and time.time() < _token_cache["expires_at"] - 30:
+            return _token_cache["token"]
 
-    _token_cache["token"] = data["access_token"]
-    _token_cache["expires_at"] = time.time() + data.get("expires_in", 1800)
-    logger.info("Token acquired, expires in %ds", data.get("expires_in", 1800))
-    return _token_cache["token"]
+        token_url = f"{os.environ['AICORE_AUTH_URL']}/oauth/token"
+        logger.info("Fetching new SAP AI Core OAuth token")
+        async with httpx.AsyncClient(timeout=30) as client:
+            resp = await client.post(
+                token_url,
+                data={"grant_type": "client_credentials"},
+                auth=(os.environ["AICORE_CLIENT_ID"], os.environ["AICORE_CLIENT_SECRET"]),
+            )
+            resp.raise_for_status()
+            data = resp.json()
+
+        _token_cache["token"] = data["access_token"]
+        _token_cache["expires_at"] = time.time() + data.get("expires_in", 1800)
+        logger.info("Token acquired, expires in %ds", data.get("expires_in", 1800))
+        return _token_cache["token"]
 
 
 async def chat_complete(system: str, user_content) -> str:

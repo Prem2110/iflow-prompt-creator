@@ -84,6 +84,7 @@ export default function FileUpload({ files, onChange, disabled = false }) {
                 className={styles.removeBtn}
                 onClick={() => removeFile(i)}
                 title="Remove"
+                aria-label={`Remove ${f.name}`}
               >
                 ✕
               </button>

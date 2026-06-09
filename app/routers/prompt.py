@@ -1,5 +1,6 @@
 import json
 import logging
+from pathlib import Path
 from typing import AsyncGenerator, List
 
 from fastapi import APIRouter, File, UploadFile
@@ -11,6 +12,11 @@ from app.services.validator import validate
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api")
+
+# Maximum file size: 20 MB
+_MAX_FILE_SIZE = 20 * 1024 * 1024
+
+_ALLOWED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt", ".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
 _SYSTEM = """You are an expert SAP CPI (Cloud Platform Integration) architect.
 
@@ -124,25 +130,51 @@ def _build_user_content(extracted: list[dict]):
     return parts
 
 
-def _retry_content(original_output: str, missing: list[str], source_content) -> str:
-    source_text = (
-        source_content
-        if isinstance(source_content, str)
-        else next((p["text"] for p in source_content if p.get("type") == "text"), "")
-    )
-    return (
-        f"The previous attempt was missing these required sections: {', '.join(missing)}\n\n"
-        f"Previous (incomplete) output:\n{original_output}\n\n"
-        f"Original source document:\n{source_text}\n\n"
-        "Fix and return the complete prompt with ALL required sections."
-    )
+def _retry_content(original_output: str, missing: list[str], source_content) -> str | list:
+    # For plain text content, return a simple text string
+    if isinstance(source_content, str):
+        return (
+            f"The previous attempt was missing these required sections: {', '.join(missing)}\n\n"
+            f"Previous (incomplete) output:\n{original_output}\n\n"
+            f"Original source document:\n{source_content}\n\n"
+            "Fix and return the complete prompt with ALL required sections."
+        )
+
+    # For mixed content (text + images), preserve all parts including images
+    parts: list = []
+    parts.append({
+        "type": "text",
+        "text": f"The previous attempt was missing these required sections: {', '.join(missing)}\n\n"
+                f"Previous (incomplete) output:\n{original_output}\n\n"
+                "Here is the original source content again. Fix and return the complete prompt with ALL required sections."
+    })
+    # Append the original source content parts (preserving images)
+    parts.extend(source_content)
+    return parts
 
 
 async def _stream(files: List[UploadFile]) -> AsyncGenerator[str, None]:
+    # --- Validate files before processing ---
+    for f in files:
+        ext = Path(f.filename or "").suffix.lower()
+        if ext not in _ALLOWED_EXTENSIONS:
+            yield _event("error", message=f"Unsupported file type '{ext}' for '{f.filename}'")
+            return
+
+    # Read file data and check sizes
+    file_data_list: list[tuple[UploadFile, bytes]] = []
+    for f in files:
+        data = await f.read()
+        if len(data) > _MAX_FILE_SIZE:
+            yield _event("error",
+                         message=f"File '{f.filename}' exceeds {_MAX_FILE_SIZE // (1024*1024)} MB limit")
+            return
+        file_data_list.append((f, data))
+
     # Step 1 — extract files
     yield _event("step", key="extract", message=f"Extracting content from {len(files)} file(s)…")
     try:
-        extracted = [await extract(f) for f in files]
+        extracted = [await extract(f, data) for f, data in file_data_list]
         kinds = [e["kind"] for e in extracted]
         yield _event("step_done", key="extract",
                      message=f"Extracted {kinds.count('text')} text and {kinds.count('image')} image file(s)")
@@ -161,7 +193,7 @@ async def _stream(files: List[UploadFile]) -> AsyncGenerator[str, None]:
         yield _event("error", message=f"LLM call failed: {exc}")
         return
 
-    # Step 4 — validate
+    # Step 3 — validate
     yield _event("step", key="validate", message="Validating prompt structure…")
     validation = validate(result)
 
@@ -170,7 +202,7 @@ async def _stream(files: List[UploadFile]) -> AsyncGenerator[str, None]:
         yield _event("done", prompt=result, valid=True, warning=None)
         return
 
-    # Step 5 — retry
+    # Step 4 — retry (if validation failed)
     yield _event("step_done", key="validate",
                  message=f"Incomplete — missing: {', '.join(validation.missing)}")
     yield _event("step", key="retry",

@@ -2,8 +2,6 @@ import base64
 import io
 from pathlib import Path
 
-from fastapi import UploadFile
-
 _MIME_MAP = {
     ".png": "image/png",
     ".jpg": "image/jpeg",
@@ -13,13 +11,12 @@ _MIME_MAP = {
 }
 
 
-async def extract(file: UploadFile) -> dict:
+async def extract(file, data: bytes) -> dict:
     """
     Returns one of:
       {"kind": "text", "name": str, "content": str}
       {"kind": "image", "name": str, "mime": str, "b64": str}
     """
-    data = await file.read()
     suffix = Path(file.filename or "").suffix.lower()
 
     if suffix == ".pdf":

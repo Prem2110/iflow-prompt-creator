@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import FileUpload from "./components/FileUpload.jsx";
 import PromptOutput from "./components/PromptOutput.jsx";
 import ProgressSteps from "./components/ProgressSteps.jsx";
@@ -11,6 +11,7 @@ export default function App() {
   const [warning, setWarning] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const abortRef = useRef(null);
 
   function upsertStep(key, state, message) {
     setSteps((prev) => {
@@ -30,11 +31,18 @@ export default function App() {
     setWarning("");
     setSteps([]);
 
+    const controller = new AbortController();
+    abortRef.current = controller;
+
     const form = new FormData();
     files.forEach((f) => form.append("files", f));
 
     try {
-      const res = await fetch("/api/generate-prompt", { method: "POST", body: form });
+      const res = await fetch("/api/generate-prompt", {
+        method: "POST",
+        body: form,
+        signal: controller.signal,
+      });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.detail || `HTTP ${res.status}`);
@@ -66,6 +74,9 @@ export default function App() {
             setSteps((prev) =>
               prev.map((s) => (s.state === "active" ? { ...s, state: "error" } : s))
             );
+            // Break out of the reading loop on error
+            controller.abort();
+            return;
           } else if (event.status === "done") {
             setPrompt(event.prompt);
             setWarning(event.warning || "");
@@ -74,18 +85,27 @@ export default function App() {
         }
       }
     } catch (err) {
+      if (err.name === "AbortError") {
+        // Silently handle user-initiated abort
+        return;
+      }
       setError(err.message);
     } finally {
       setLoading(false);
+      abortRef.current = null;
     }
   }
 
   function handleReset() {
+    if (abortRef.current) {
+      abortRef.current.abort();
+    }
     setFiles([]);
     setSteps([]);
     setPrompt("");
     setWarning("");
     setError("");
+    setLoading(false);
   }
 
   return (
@@ -115,14 +135,14 @@ export default function App() {
                 ? <><span className={styles.spinner} /> Generating…</>
                 : "Generate Prompt"}
             </button>
-            {(files.length > 0 || prompt) && !loading && (
-              <button className={styles.btnGhost} onClick={handleReset}>
-                Reset
+            {(files.length > 0 || prompt) && (
+              <button className={styles.btnGhost} onClick={handleReset} disabled={loading && !abortRef.current}>
+                {loading ? "Cancel" : "Reset"}
               </button>
             )}
           </div>
 
-          {error && <p className={styles.error}>{error}</p>}
+          {error && <p className={styles.error} role="alert">{error}</p>}
 
           {steps.length > 0 && <ProgressSteps steps={steps} />}
         </section>
@@ -143,7 +163,7 @@ export default function App() {
               </button>
             </div>
             {warning && (
-              <div className={styles.warning}>
+              <div className={styles.warning} role="alert">
                 <strong>Review needed:</strong> {warning}
               </div>
             )}
