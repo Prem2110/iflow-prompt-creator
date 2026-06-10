@@ -256,9 +256,10 @@ _INSTRUCTIONS_SYSTEM = """You are a senior SAP CPI (Cloud Platform Integration) 
 a complete, human-readable manual for a developer who will build and test an iFlow by hand.
 
 The user will provide technical documentation, business requirements, screenshots, or notes.
-Produce a step-by-step guide covering two areas:
-  1. How to build the iFlow manually inside the SAP CPI web UI.
-  2. How to test the running iFlow using Postman.
+Produce a thorough step-by-step guide covering three areas:
+  1. How to build the iFlow manually inside the SAP CPI web UI (exact clicks, field names).
+  2. Any scripts required by the iFlow (Groovy, XSLT, XPath expressions, etc.).
+  3. How to test the running iFlow using Postman AND cURL.
 
 Output ONLY the guide text — no preamble, no explanation, no markdown code fences.
 
@@ -268,9 +269,16 @@ FORMATTING RULES:
 - Reference exact SAP CPI UI element names as they appear on screen
   (e.g. "Integration Flow", "Sender", "Content Modifier", tab labels, field names).
 - Never skip a click. Every navigation path must be complete.
-- For the Postman section: include method, full URL pattern, authentication type,
-  all required headers, a realistic sample request body (JSON or XML as appropriate),
-  expected response status and shape, and at least two test cases.
+- SCRIPTS RULE: Wherever the iFlow requires a Script step, XSLT mapping, Groovy expression,
+  or XPath/JSONPath value — provide the COMPLETE, RUNNABLE code inline in the relevant step.
+  Do not say "write a script here" — write the actual script.
+  Examples: full Groovy .gsh body for Script steps, complete XSLT template for XSLT mappings,
+  exact XPath/JSONPath strings for Content Modifier expressions, complete JSONata expressions.
+- POSTMAN RULE: Include method, full URL, auth, all headers, a realistic sample body,
+  expected response, and at least 2 test cases. Also include the cURL equivalent for every
+  Postman request so developers can test from the terminal too.
+- CSRF RULE: If the iFlow involves S/4HANA OData or any CSRF-protected endpoint, include a
+  dedicated CSRF token pre-fetch step with its own Postman request AND cURL command.
 
 Required output structure (use these exact section headings):
 
@@ -279,53 +287,73 @@ Package: [package-name]
 
 ## Prerequisites
 - [SAP CPI tenant access with Developer role or equivalent]
-- [Any specific system/credential requirements derived from the scenario]
+- [Any system/credential/certificate requirements derived from the scenario]
 
-## Step 1: [Action — e.g. "Create the Integration Package or Open Existing"]
+## Step 1: [Action]
 1. [Exact UI action]
 2. [Exact UI action]
 ...
 
-## Step 2: [Next major action]
-1. ...
+## Step N: [Action]
 ...
 
-(one ## Step N section per major component or configuration area — Sender, each middleware
-component, Receiver, message mappings, error handling, etc.)
+(one ## Step N per major component — Sender channel, each middleware step, Script steps with
+full code, XSLT steps with full template, Receiver channel, error handling, etc.)
+
+## Scripts Reference
+
+### [Script/Mapping Name] — [Type: Groovy / XSLT / JSONata / XPath]
+[Complete runnable code]
+
+### [Next script if applicable]
+[Complete runnable code]
 
 ## Testing with Postman
 
-### Endpoint Details
-- Method: [GET / POST / …]
+### Step 1: Fetch CSRF Token (if applicable)
+#### Postman
+- Method: GET
+- URL: ...
+- Headers: X-CSRF-Token: Fetch, ...
+
+#### cURL
+```
+curl -X GET "..." -H "X-CSRF-Token: Fetch" -u "user:password" -v
+```
+
+### Step 2: [Main Request Name]
+#### Postman
+- Method: [POST/GET/…]
 - URL: https://<your-tenant-host>/http/<path>
-- Authentication: [Basic Auth / OAuth2 Client Credentials / …]
+- Authentication: [type]
+- Headers: [list]
+- Body: [realistic JSON/XML sample]
 
-### Request Headers
-- [Header-Name]: [value or description]
-
-### Sample Request Body
-[Realistic JSON or XML sample — derive field names from the scenario]
+#### cURL
+```
+curl -X POST "..." -H "Content-Type: application/json" -d '{"field":"value"}' -u "user:password"
+```
 
 ### Expected Response
-- Status: [HTTP code]
+- Status: [code]
 - Body: [structure or sample]
 
 ### Test Case 1 — Happy Path
-1. [Send request with …]
-2. [Verify status …]
-3. [Verify response body contains …]
+1. [action]
+2. [verify]
 
-### Test Case 2 — [Error / Edge Case Name]
-1. [Send request with …]
-2. [Verify …]
+### Test Case 2 — [Error/Edge Case]
+1. [action]
+2. [verify]
 
 Rules:
 - ALL section headings listed above are REQUIRED.
-- Step sections must reference exact SAP CPI UI element names.
-- The Postman section must include method, URL, auth, headers, sample body, expected response,
-  and at least two test cases.
+- The "## Scripts Reference" section is REQUIRED — if no scripts exist, state "No standalone
+  scripts required for this iFlow" under the heading.
+- Every Script or XSLT step in the iFlow MUST include the complete working code.
+- Both Postman AND cURL examples are REQUIRED in the testing section.
 - Derive iFlow name, package, endpoints, and field names from the uploaded content.
-  If something cannot be determined, use a clearly labelled placeholder like <your-endpoint>.
+  Use clearly labelled placeholders (e.g. <your-tenant-host>) for values that cannot be determined.
 """
 
 _INSTRUCTIONS_SUFFIX = "\n\nGenerate the complete SAP CPI manual build guide and Postman testing instructions from the content above."
@@ -373,7 +401,7 @@ async def _stream_instructions(files: List[UploadFile]) -> AsyncGenerator[str, N
 
     yield _event("step", key="generate", message="Claude is writing the step-by-step instructions…")
     try:
-        gen = await _chat_complete(_INSTRUCTIONS_SYSTEM, user_content, stream=True, max_tokens=8192)
+        gen = await _chat_complete(_INSTRUCTIONS_SYSTEM, user_content, stream=True, max_tokens=8192, max_continuations=3)
         result = ""
         async for text in gen:
             result += text

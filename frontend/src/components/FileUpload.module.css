@@ -1,4 +1,4 @@
-/* Gradient-border dropzone — padding-box/border-box trick */
+/* Gradient-border dropzone */
 .dropzone {
   border-radius: 12px;
   padding: 2.75rem 1.5rem;
@@ -6,33 +6,27 @@
   text-align: center;
   transition: box-shadow 0.2s ease, background 0.2s ease;
   background:
-    linear-gradient(rgba(7, 9, 26, 0.55), rgba(7, 9, 26, 0.55)) padding-box,
-    linear-gradient(135deg, rgba(99, 62, 220, 0.28), rgba(6, 182, 212, 0.18)) border-box;
+    linear-gradient(#f8fafc, #f8fafc) padding-box,
+    linear-gradient(135deg, rgba(99, 62, 220, 0.2), rgba(6, 182, 212, 0.15)) border-box;
   border: 1.5px solid transparent;
 }
 
 .dropzone:hover:not(.disabledZone) {
   background:
-    linear-gradient(rgba(7, 9, 26, 0.45), rgba(7, 9, 26, 0.45)) padding-box,
-    linear-gradient(135deg, rgba(99, 62, 220, 0.55), rgba(6, 182, 212, 0.45)) border-box;
-  box-shadow: 0 0 24px rgba(99, 62, 220, 0.18);
+    linear-gradient(#f0f4ff, #f0f4ff) padding-box,
+    linear-gradient(135deg, rgba(99, 62, 220, 0.5), rgba(6, 182, 212, 0.4)) border-box;
+  box-shadow: 0 0 20px rgba(99, 62, 220, 0.1);
 }
 
 .dragging {
   background:
-    linear-gradient(rgba(7, 9, 26, 0.4), rgba(7, 9, 26, 0.4)) padding-box,
-    linear-gradient(135deg, rgba(99, 62, 220, 0.85), rgba(6, 182, 212, 0.7)) border-box;
-  box-shadow: 0 0 36px rgba(99, 62, 220, 0.3), inset 0 0 32px rgba(99, 62, 220, 0.06);
+    linear-gradient(#eef2ff, #eef2ff) padding-box,
+    linear-gradient(135deg, rgba(99, 62, 220, 0.8), rgba(6, 182, 212, 0.6)) border-box;
+  box-shadow: 0 0 28px rgba(99, 62, 220, 0.18);
 }
 
-.disabledZone {
-  opacity: 0.4;
-  cursor: not-allowed;
-}
-
-.hiddenInput {
-  display: none;
-}
+.disabledZone { opacity: 0.45; cursor: not-allowed; }
+.hiddenInput  { display: none; }
 
 .dropContent {
   pointer-events: none;
@@ -43,36 +37,23 @@
   transition: transform 0.2s ease;
 }
 
-.dragging .dropContent {
-  transform: scale(1.03);
-}
+.dragging .dropContent { transform: scale(1.03); }
 
 .dropIcon {
-  color: rgba(129, 140, 248, 0.65);
+  color: rgba(99, 62, 220, 0.45);
   margin-bottom: 0.4rem;
   transition: color 0.2s, transform 0.2s;
 }
 
 .dragging .dropIcon,
 .dropzone:hover:not(.disabledZone) .dropIcon {
-  color: rgba(192, 132, 252, 0.85);
+  color: rgba(99, 62, 220, 0.75);
   transform: translateY(-3px);
 }
 
-.dropText {
-  font-size: 0.95rem;
-  color: #cbd5e1;
-}
-
-.browse {
-  color: #818cf8;
-  font-weight: 600;
-}
-
-.dropHint {
-  font-size: 0.78rem;
-  color: #374151;
-}
+.dropText  { font-size: 0.95rem; color: #475569; }
+.browse    { color: #6366f1; font-weight: 600; }
+.dropHint  { font-size: 0.78rem; color: #94a3b8; }
 
 /* File list */
 .fileList {
@@ -80,71 +61,50 @@
   margin-top: 1rem;
   display: flex;
   flex-direction: column;
-  gap: 0.45rem;
+  gap: 0.4rem;
 }
 
 .fileItem {
   display: flex;
   align-items: center;
   gap: 0.75rem;
-  background: rgba(13, 16, 35, 0.55);
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
-  padding: 0.6rem 0.9rem 0.6rem 0.6rem;
+  padding: 0.55rem 0.85rem 0.55rem 0.55rem;
   position: relative;
   overflow: hidden;
   transition: border-color 0.15s;
 }
 
-.fileItem:hover {
-  border-color: rgba(255, 255, 255, 0.1);
-}
+.fileItem:hover { border-color: #cbd5e1; }
 
-/* Coloured left accent strip by file type */
+/* Left accent strip by type */
 .fileItem::before {
   content: '';
   position: absolute;
-  left: 0;
-  top: 0;
-  bottom: 0;
+  left: 0; top: 0; bottom: 0;
   width: 3px;
-  background: var(--accent, rgba(99, 62, 220, 0.5));
+  background: var(--accent, rgba(99, 62, 220, 0.4));
   border-radius: 8px 0 0 8px;
 }
 
-.typePdf    { --accent: rgba(239,  68,  68, 0.75); }
-.typeDoc    { --accent: rgba( 59, 130, 246, 0.75); }
-.typePptx   { --accent: rgba(249, 115,  22, 0.75); }
-.typeXlsx   { --accent: rgba( 34, 197,  94, 0.75); }
-.typeCsv    { --accent: rgba( 20, 184, 166, 0.75); }
-.typeTxt    { --accent: rgba(148, 163, 184, 0.65); }
-.typeImage  { --accent: rgba(168,  85, 247, 0.75); }
+.typePdf   { --accent: rgba(239,  68,  68, 0.7); }
+.typeDoc   { --accent: rgba( 59, 130, 246, 0.7); }
+.typePptx  { --accent: rgba(249, 115,  22, 0.7); }
+.typeXlsx  { --accent: rgba( 34, 197,  94, 0.7); }
+.typeCsv   { --accent: rgba( 20, 184, 166, 0.7); }
+.typeTxt   { --accent: rgba(148, 163, 184, 0.6); }
+.typeImage { --accent: rgba(168,  85, 247, 0.7); }
 
-.fileIcon {
-  font-size: 1.05rem;
-  flex-shrink: 0;
-  margin-left: 0.3rem;
-}
-
-.fileName {
-  flex: 1;
-  font-size: 0.88rem;
-  color: #e2e8f0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.fileSize {
-  font-size: 0.76rem;
-  color: #374151;
-  flex-shrink: 0;
-}
+.fileIcon { font-size: 1.05rem; flex-shrink: 0; margin-left: 0.3rem; }
+.fileName { flex: 1; font-size: 0.88rem; color: #0f172a; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fileSize { font-size: 0.76rem; color: #94a3b8; flex-shrink: 0; }
 
 .removeBtn {
   background: none;
   border: none;
-  color: #374151;
+  color: #cbd5e1;
   cursor: pointer;
   font-size: 0.8rem;
   padding: 0.2rem 0.35rem;
@@ -153,7 +113,4 @@
   flex-shrink: 0;
 }
 
-.removeBtn:hover {
-  color: #ef4444;
-  background: rgba(239, 68, 68, 0.1);
-}
+.removeBtn:hover { color: #dc2626; background: #fef2f2; }

@@ -5,7 +5,7 @@
   position: relative;
 }
 
-/* ── Animated orbs ── */
+/* ── Animated orbs (very subtle on light) ── */
 .orbs {
   position: fixed;
   inset: 0;
@@ -17,8 +17,8 @@
 .orb {
   position: absolute;
   border-radius: 50%;
-  filter: blur(90px);
-  opacity: 0.55;
+  filter: blur(100px);
+  opacity: 0.35;
 }
 
 .orb1 {
@@ -26,7 +26,7 @@
   height: 560px;
   top: -120px;
   left: -120px;
-  background: radial-gradient(circle, rgba(99, 62, 220, 0.4) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(99, 62, 220, 0.18) 0%, transparent 70%);
   animation: floatOrb 20s ease-in-out infinite;
 }
 
@@ -35,7 +35,7 @@
   height: 440px;
   bottom: -100px;
   right: -100px;
-  background: radial-gradient(circle, rgba(6, 182, 212, 0.3) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(6, 182, 212, 0.14) 0%, transparent 70%);
   animation: floatOrb 26s ease-in-out infinite reverse;
 }
 
@@ -44,7 +44,7 @@
   height: 360px;
   top: 45%;
   left: 52%;
-  background: radial-gradient(circle, rgba(167, 139, 250, 0.2) 0%, transparent 70%);
+  background: radial-gradient(circle, rgba(167, 139, 250, 0.1) 0%, transparent 70%);
   animation: floatOrb 32s ease-in-out infinite 8s;
 }
 
@@ -67,11 +67,11 @@
 
 .logoIcon {
   font-size: 1.65rem;
-  filter: drop-shadow(0 0 14px rgba(99, 62, 220, 0.8));
+  filter: drop-shadow(0 0 10px rgba(99, 62, 220, 0.4));
 }
 
 .logoText {
-  background: linear-gradient(130deg, #a5b4fc 0%, #c084fc 45%, #38bdf8 100%);
+  background: linear-gradient(130deg, #4f46e5 0%, #7c3aed 50%, #0891b2 100%);
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -83,12 +83,12 @@
   gap: 0.4rem;
   margin-top: 0.85rem;
   padding: 0.3rem 0.9rem;
-  background: rgba(99, 62, 220, 0.1);
-  border: 1px solid rgba(99, 62, 220, 0.28);
+  background: rgba(99, 62, 220, 0.07);
+  border: 1px solid rgba(99, 62, 220, 0.2);
   border-radius: 999px;
   font-size: 0.74rem;
   font-weight: 500;
-  color: #a78bfa;
+  color: #6366f1;
   letter-spacing: 0.04em;
 }
 
@@ -96,14 +96,14 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #a78bfa;
+  background: #6366f1;
   flex-shrink: 0;
   animation: pulseDot 2.2s ease-in-out infinite;
 }
 
 .subtitle {
   margin-top: 0.6rem;
-  color: #4b5563;
+  color: #94a3b8;
   font-size: 0.88rem;
 }
 
@@ -111,20 +111,18 @@
 .main {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1.25rem;
   position: relative;
   z-index: 1;
 }
 
 .card {
-  background: rgba(13, 16, 35, 0.72);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
   border-radius: 16px;
   padding: 1.75rem;
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  box-shadow: 0 4px 40px rgba(0, 0, 0, 0.4), 0 1px 0 rgba(255, 255, 255, 0.05) inset;
-  animation: fadeSlideIn 0.35s ease both;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
+  animation: fadeSlideIn 0.3s ease both;
 }
 
 /* ── Section headers ── */
@@ -139,11 +137,11 @@
   display: flex;
   align-items: center;
   gap: 0.55rem;
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: #94a3b8;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #64748b;
   text-transform: uppercase;
-  letter-spacing: 0.09em;
+  letter-spacing: 0.1em;
   margin-bottom: 1.1rem;
 }
 
@@ -159,44 +157,86 @@
   font-size: 0.68rem;
   font-weight: 700;
   flex-shrink: 0;
-  box-shadow: 0 0 10px rgba(99, 62, 220, 0.55);
+  box-shadow: 0 2px 8px rgba(99, 62, 220, 0.35);
 }
 
-/* ── Retry button ── */
+/* ── Output tabs ── */
+.tabsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid #e2e8f0;
+  margin: -1.75rem -1.75rem 1.5rem;
+  padding: 0 1.75rem;
+}
+
+.tabs {
+  display: flex;
+}
+
+.tab {
+  padding: 0.9rem 1.2rem 0.85rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #94a3b8;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+}
+
+.tab:hover { color: #475569; }
+
+.tab.activeTab {
+  color: #6366f1;
+  border-bottom-color: #6366f1;
+}
+
+.tabActions { flex-shrink: 0; }
+
+.tabPlaceholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  color: #94a3b8;
+  font-size: 0.9rem;
+  text-align: center;
+}
+
+/* ── Buttons ── */
 .btnRetry {
   display: inline-flex;
   align-items: center;
   gap: 0.4rem;
-  padding: 0.45rem 1rem;
+  padding: 0.42rem 0.9rem;
   background: transparent;
-  color: #818cf8;
-  border: 1px solid rgba(129, 140, 248, 0.35);
+  color: #6366f1;
+  border: 1px solid rgba(99, 62, 220, 0.25);
   border-radius: 8px;
-  font-size: 0.88rem;
+  font-size: 0.84rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s;
+  transition: background 0.15s, border-color 0.15s;
 }
 
 .btnRetry:hover:not(:disabled) {
-  background: rgba(99, 62, 220, 0.1);
-  border-color: rgba(192, 132, 252, 0.6);
-  color: #c084fc;
+  background: rgba(99, 62, 220, 0.06);
+  border-color: rgba(99, 62, 220, 0.4);
 }
 
-.btnRetry:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
+.btnRetry:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* ── Action row ── */
 .actions {
   display: flex;
   gap: 0.75rem;
   margin-top: 1.25rem;
+  flex-wrap: wrap;
 }
 
-/* ── Primary button — gradient + shimmer ── */
+/* Primary — indigo gradient + shimmer */
 .btnPrimary {
   display: inline-flex;
   align-items: center;
@@ -212,7 +252,7 @@
   transition: opacity 0.15s, transform 0.12s, box-shadow 0.15s;
   position: relative;
   overflow: hidden;
-  box-shadow: 0 0 22px rgba(99, 62, 220, 0.38);
+  box-shadow: 0 2px 12px rgba(99, 62, 220, 0.3);
 }
 
 .btnPrimary::after {
@@ -222,7 +262,7 @@
   left: -75%;
   width: 50%;
   height: 220%;
-  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.18), transparent);
+  background: linear-gradient(to right, transparent, rgba(255, 255, 255, 0.2), transparent);
   transform: skewX(-20deg);
   animation: shimmer 2.8s ease-in-out infinite;
 }
@@ -230,52 +270,42 @@
 .btnPrimary:hover:not(:disabled) {
   opacity: 0.9;
   transform: translateY(-1px);
-  box-shadow: 0 6px 28px rgba(99, 62, 220, 0.55);
+  box-shadow: 0 4px 20px rgba(99, 62, 220, 0.4);
 }
 
-.btnPrimary:active:not(:disabled) {
-  transform: translateY(0);
-}
+.btnPrimary:active:not(:disabled) { transform: translateY(0); }
+.btnPrimary:disabled { opacity: 0.45; cursor: not-allowed; }
 
-.btnPrimary:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
-
-/* ── Secondary button (Instructions) ── */
+/* Secondary — outlined indigo */
 .btnSecondary {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.65rem 1.4rem;
-  background: rgba(99, 62, 220, 0.12);
-  color: #a5b4fc;
-  border: 1px solid rgba(99, 62, 220, 0.35);
+  background: rgba(99, 62, 220, 0.06);
+  color: #6366f1;
+  border: 1px solid rgba(99, 62, 220, 0.25);
   border-radius: 8px;
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.12s;
+  transition: background 0.15s, border-color 0.15s, transform 0.12s;
 }
 
 .btnSecondary:hover:not(:disabled) {
-  background: rgba(99, 62, 220, 0.22);
-  border-color: rgba(129, 140, 248, 0.6);
-  color: #c4b5fd;
+  background: rgba(99, 62, 220, 0.1);
+  border-color: rgba(99, 62, 220, 0.45);
   transform: translateY(-1px);
 }
 
-.btnSecondary:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-}
+.btnSecondary:disabled { opacity: 0.4; cursor: not-allowed; }
 
-/* ── Ghost button ── */
+/* Ghost */
 .btnGhost {
   padding: 0.65rem 1.25rem;
   background: transparent;
-  color: #64748b;
-  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  border: 1px solid #e2e8f0;
   border-radius: 8px;
   font-size: 0.95rem;
   cursor: pointer;
@@ -283,96 +313,39 @@
 }
 
 .btnGhost:hover {
-  border-color: rgba(255, 255, 255, 0.16);
-  background: rgba(255, 255, 255, 0.04);
-  color: #cbd5e1;
+  border-color: #cbd5e1;
+  background: #f1f5f9;
+  color: #475569;
 }
 
-/* ── Spinner ── */
+/* Spinner */
 .spinner {
   display: inline-block;
   width: 14px;
   height: 14px;
-  border: 2px solid rgba(255, 255, 255, 0.3);
+  border: 2px solid rgba(255, 255, 255, 0.35);
   border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
 }
 
-/* ── Output tabs ── */
-.tabsRow {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
-  margin: -1.75rem -1.75rem 1.5rem;
-  padding: 0 1.75rem;
-}
-
-.tabs {
-  display: flex;
-  gap: 0;
-}
-
-.tab {
-  padding: 0.85rem 1.15rem 0.8rem;
-  font-size: 0.84rem;
-  font-weight: 600;
-  color: #374151;
-  background: none;
-  border: none;
-  border-bottom: 2px solid transparent;
-  cursor: pointer;
-  transition: color 0.15s, border-color 0.15s;
-  margin-bottom: -1px;
-  letter-spacing: 0.01em;
-}
-
-.tab:hover {
-  color: #94a3b8;
-}
-
-.tab.activeTab {
-  color: #a5b4fc;
-  border-bottom-color: #6366f1;
-}
-
-.tabActions {
-  flex-shrink: 0;
-}
-
-.tabPlaceholder {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  padding: 3rem 1.5rem;
-  gap: 1rem;
-  color: #374151;
-  text-align: center;
-}
-
-.tabPlaceholder p {
-  font-size: 0.9rem;
-}
-
-/* ── Feedback banners ── */
+/* Banners */
 .error {
   margin-top: 1rem;
   padding: 0.75rem 1rem;
-  background: rgba(239, 68, 68, 0.08);
-  border: 1px solid rgba(239, 68, 68, 0.25);
+  background: #fef2f2;
+  border: 1px solid #fecaca;
   border-radius: 8px;
-  color: #fca5a5;
+  color: #dc2626;
   font-size: 0.9rem;
 }
 
 .warning {
   margin-bottom: 1rem;
   padding: 0.75rem 1rem;
-  background: rgba(234, 179, 8, 0.08);
-  border: 1px solid rgba(234, 179, 8, 0.25);
+  background: #fffbeb;
+  border: 1px solid #fde68a;
   border-radius: 8px;
-  color: #fde68a;
+  color: #b45309;
   font-size: 0.88rem;
 }
