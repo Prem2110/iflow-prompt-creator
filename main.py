@@ -17,7 +17,7 @@ logging.basicConfig(
     format="%(asctime)s  %(levelname)-8s  %(name)s  %(message)s",
 )
 
-app = FastAPI(title="IFS Prompt Generator", version="0.1.0")
+app = FastAPI(title="Orbit Prompt Generator", version="0.1.0")
 
 # In dev, Vite proxies /api to :8000 so CORS isn't needed.
 # For production, set CORS_ORIGINS env var (comma-separated).

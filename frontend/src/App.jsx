@@ -139,7 +139,7 @@ export default function App() {
       <header className={styles.header}>
         <div className={styles.logo}>
           <span className={styles.logoIcon}>⚡</span>
-          <span className={styles.logoText}>IFS Prompt Generator</span>
+          <span className={styles.logoText}>Orbit Prompt Generator</span>
         </div>
         <div>
           <span className={styles.badge}>

@@ -1,4 +1,4 @@
-# IFS Prompt Generator
+# Orbit Prompt Generator
 
 Uploads documents (PDF, DOCX, PPTX, XLSX, CSV, TXT) or screenshots and generates a ready-to-use **SAP CPI iFlow configuration prompt** using Claude on SAP AI Core. The prompt is designed to be pasted into a separate SAP CPI iFlow builder.
 

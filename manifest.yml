@@ -1,6 +1,6 @@
 ---
 applications:
-  - name: iflow-prompt-creator
+  - name: orbit-prompt-creator
     memory: 512M
     disk_quota: 1G
     buildpacks:
@@ -16,16 +16,16 @@ applications:
       LLM_TIMEOUT: "120"
 
     # Set secrets before deploying:
-    #   cf set-env iflow-prompt-creator AICORE_CLIENT_ID     <value>
-    #   cf set-env iflow-prompt-creator AICORE_CLIENT_SECRET <value>
-    #   cf set-env iflow-prompt-creator AICORE_AUTH_URL      <value>
-    #   cf set-env iflow-prompt-creator AICORE_BASE_URL      <value>
-    #   cf set-env iflow-prompt-creator LLM_DEPLOYMENT_ID    <value>
+    #   cf set-env orbit-prompt-creator AICORE_CLIENT_ID     <value>
+    #   cf set-env orbit-prompt-creator AICORE_CLIENT_SECRET <value>
+    #   cf set-env orbit-prompt-creator AICORE_AUTH_URL      <value>
+    #   cf set-env orbit-prompt-creator AICORE_BASE_URL      <value>
+    #   cf set-env orbit-prompt-creator LLM_DEPLOYMENT_ID    <value>
     #
     #   # LLM Usage Monitor (optional — omit BASE_URL to disable):
-    #   cf set-env iflow-prompt-creator LLM_USAGE_MONITOR_BASE_URL   <value>
-    #   cf set-env iflow-prompt-creator LLM_USAGE_MONITOR_APP_ID     <value>
-    #   cf set-env iflow-prompt-creator LLM_USAGE_MONITOR_MODEL_NAME <value>
-    #   cf set-env iflow-prompt-creator LLM_USAGE_MONITOR_API_KEY    <value>
+    #   cf set-env orbit-prompt-creator LLM_USAGE_MONITOR_BASE_URL   <value>
+    #   cf set-env orbit-prompt-creator LLM_USAGE_MONITOR_APP_ID     <value>
+    #   cf set-env orbit-prompt-creator LLM_USAGE_MONITOR_MODEL_NAME <value>
+    #   cf set-env orbit-prompt-creator LLM_USAGE_MONITOR_API_KEY    <value>
     #
     # CORS_ORIGINS is not required — the SPA is served from the same origin.
