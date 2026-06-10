@@ -6,6 +6,8 @@ import time
 
 import httpx
 
+from app.monitoring.llm_monitor import log_llm_invoke
+
 logger = logging.getLogger(__name__)
 
 _token_cache: dict = {"token": None, "expires_at": 0}
@@ -56,7 +58,15 @@ def _make_headers(token: str) -> dict:
 async def _stream_segment(url: str, headers: dict, payload: dict):
     """
     Streams one API call. Yields text strings for content, then one final
-    dict {"stop_reason": str, "chars": int} to signal completion.
+    sentinel dict:
+      {
+        "stop_reason": str,
+        "chars": int,
+        "input_tokens": int,
+        "output_tokens": int,
+        "model": str,
+      }
+    Used by _stream_with_continuations to drive the monitor and continuation logic.
     """
     async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as client:
         async with client.stream("POST", url, json=payload, headers=headers) as resp:
@@ -68,6 +78,9 @@ async def _stream_segment(url: str, headers: dict, payload: dict):
             buffer = ""
             chars = 0
             stop_reason = "end_turn"
+            input_tokens = 0
+            output_tokens = 0
+            model_id = ""
 
             async for chunk in resp.aiter_bytes():
                 buffer += chunk.decode("utf-8", errors="replace")
@@ -82,17 +95,33 @@ async def _stream_segment(url: str, headers: dict, payload: dict):
                     try:
                         event = json.loads(data_str)
                         etype = event.get("type")
-                        if etype == "content_block_delta":
+
+                        if etype == "message_start":
+                            msg = event.get("message", {})
+                            model_id = msg.get("model", "")
+                            usage = msg.get("usage", {})
+                            input_tokens = usage.get("input_tokens", 0)
+
+                        elif etype == "content_block_delta":
                             text = event.get("delta", {}).get("text", "")
                             if text:
                                 chars += len(text)
                                 yield text
+
                         elif etype == "message_delta":
                             stop_reason = event.get("delta", {}).get("stop_reason") or stop_reason
+                            output_tokens = event.get("usage", {}).get("output_tokens", 0)
+
                     except json.JSONDecodeError:
                         continue
 
-    yield {"stop_reason": stop_reason, "chars": chars}
+    yield {
+        "stop_reason":    stop_reason,
+        "chars":          chars,
+        "input_tokens":   input_tokens,
+        "output_tokens":  output_tokens,
+        "model":          model_id,
+    }
 
 
 async def _stream_with_continuations(
@@ -103,8 +132,7 @@ async def _stream_with_continuations(
 ):
     """
     Streams the LLM response, transparently continuing when stop_reason is
-    'max_tokens'. Each continuation appends the previous assistant turn and
-    asks the model to pick up exactly where it stopped.
+    'max_tokens'. After each segment the monitor is called fire-and-forget.
     """
     messages = [{"role": "user", "content": user_content}]
     total_chars = 0
@@ -124,18 +152,37 @@ async def _stream_with_continuations(
         logger.info("POST %s  resource-group=%s  attempt=%d", url, resource_group, attempt)
 
         segment_text = ""
-        stop_reason = "end_turn"
+        sentinel: dict = {}
 
         async for item in _stream_segment(url, headers, payload):
             if isinstance(item, dict):
-                stop_reason = item["stop_reason"]
-                total_chars += item["chars"]
+                sentinel = item
             else:
                 segment_text += item
+                total_chars += len(item)
                 yield item
 
+        stop_reason   = sentinel.get("stop_reason", "end_turn")
+        input_tokens  = sentinel.get("input_tokens", 0)
+        output_tokens = sentinel.get("output_tokens", 0)
+        model_id      = sentinel.get("model", os.environ.get("LLM_DEPLOYMENT_ID", ""))
+
+        # ── Monitor: log this segment as an l_invoke ──────────────────────────
+        log_llm_invoke({
+            "role":    "assistant",
+            "content": [{"type": "text", "text": segment_text}],
+            "model":   model_id,
+            "stop_reason": stop_reason,
+            "usage":   {"input_tokens": input_tokens, "output_tokens": output_tokens},
+            "stream":  True,
+            "continuation_attempt": attempt,
+        })
+
         if stop_reason != "max_tokens":
-            logger.info("Streaming complete: %d chars total, stop_reason=%s", total_chars, stop_reason)
+            logger.info(
+                "Streaming complete: %d chars total, stop_reason=%s, tokens=%d+%d",
+                total_chars, stop_reason, input_tokens, output_tokens,
+            )
             break
 
         if attempt >= max_continuations:
@@ -177,7 +224,7 @@ async def chat_complete(
     if stream:
         return _stream_with_continuations(system, user_content, max_tokens, max_continuations)
 
-    # Non-streaming path
+    # ── Non-streaming path ────────────────────────────────────────────────────
     token = await _get_token()
     url = _make_url("invoke")
     headers = _make_headers(token)
@@ -198,6 +245,11 @@ async def chat_complete(
         logger.error("AI Core error %s: %s", resp.status_code, resp.text)
         raise ValueError(f"AI Core returned status {resp.status_code}")
 
-    result = resp.json()["content"][0]["text"]
+    response_data = resp.json()
+    result = response_data["content"][0]["text"]
     logger.info("Response received (%d chars)", len(result))
+
+    # ── Monitor: log the full API response ───────────────────────────────────
+    log_llm_invoke({**response_data, "stream": False})
+
     return result
