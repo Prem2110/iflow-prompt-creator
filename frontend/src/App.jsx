@@ -1,48 +1,47 @@
 import { useRef, useState } from "react";
 import FileUpload from "./components/FileUpload.jsx";
 import PromptOutput from "./components/PromptOutput.jsx";
+import InstructionsOutput from "./components/InstructionsOutput.jsx";
 import ProgressSteps from "./components/ProgressSteps.jsx";
 import styles from "./App.module.css";
 
 export default function App() {
   const [files, setFiles] = useState([]);
   const [steps, setSteps] = useState([]);
+
   const [prompt, setPrompt] = useState("");
+  const [instructions, setInstructions] = useState("");
+  const [activeTab, setActiveTab] = useState("prompt");
+
   const [warning, setWarning] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingMode, setLoadingMode] = useState(null); // "prompt" | "instructions"
   const [error, setError] = useState("");
   const abortRef = useRef(null);
 
   function upsertStep(key, state, message) {
     setSteps((prev) => {
       const exists = prev.find((s) => s.key === key);
-      if (exists) {
-        return prev.map((s) => (s.key === key ? { ...s, state, message } : s));
-      }
+      if (exists) return prev.map((s) => (s.key === key ? { ...s, state, message } : s));
       return [...prev, { key, state, message }];
     });
   }
 
-  async function handleGenerate() {
-    if (files.length === 0) return;
-    setLoading(true);
-    setError("");
-    setPrompt("");
-    setWarning("");
-    setSteps([]);
-
+  async function streamFrom(endpoint, onDone) {
+    if (abortRef.current) abortRef.current.abort();
     const controller = new AbortController();
     abortRef.current = controller;
+
+    setLoading(true);
+    setError("");
+    setSteps([]);
+    setWarning("");
 
     const form = new FormData();
     files.forEach((f) => form.append("files", f));
 
     try {
-      const res = await fetch("/api/generate-prompt", {
-        method: "POST",
-        body: form,
-        signal: controller.signal,
-      });
+      const res = await fetch(endpoint, { method: "POST", body: form, signal: controller.signal });
       if (!res.ok) {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.detail || `HTTP ${res.status}`);
@@ -66,25 +65,23 @@ export default function App() {
 
           if (event.status === "step") {
             upsertStep(event.key, "active", event.message);
-            if (event.key === "retry") {
-              setPrompt("");
-            }
+            if (event.key === "retry") onDone(""); // clear on retry
           } else if (event.status === "step_done") {
             upsertStep(event.key, "done", event.message);
           } else if (event.status === "chunk") {
-            setPrompt((prev) => prev + event.text);
+            onDone((prev) => prev + event.text);
           } else if (event.status === "error") {
             setError(event.message);
             setLoading(false);
-            setSteps((prev) =>
-              prev.map((s) => (s.state === "active" ? { ...s, state: "error" } : s))
-            );
+            setLoadingMode(null);
+            setSteps((prev) => prev.map((s) => (s.state === "active" ? { ...s, state: "error" } : s)));
             controller.abort();
             return;
           } else if (event.status === "done") {
-            setPrompt(event.prompt);
+            onDone(event.prompt || "");
             setWarning(event.warning || "");
             setLoading(false);
+            setLoadingMode(null);
           }
         }
       }
@@ -93,8 +90,25 @@ export default function App() {
       setError(err.message);
     } finally {
       setLoading(false);
+      setLoadingMode(null);
       abortRef.current = null;
     }
+  }
+
+  async function handleGenerate() {
+    if (files.length === 0) return;
+    setActiveTab("prompt");
+    setLoadingMode("prompt");
+    setPrompt("");
+    await streamFrom("/api/generate-prompt", setPrompt);
+  }
+
+  async function handleInstructions() {
+    if (files.length === 0) return;
+    setActiveTab("instructions");
+    setLoadingMode("instructions");
+    setInstructions("");
+    await streamFrom("/api/generate-instructions", setInstructions);
   }
 
   function handleReset() {
@@ -102,10 +116,17 @@ export default function App() {
     setFiles([]);
     setSteps([]);
     setPrompt("");
+    setInstructions("");
     setWarning("");
     setError("");
     setLoading(false);
+    setLoadingMode(null);
+    setActiveTab("prompt");
   }
+
+  const hasOutput = prompt || instructions;
+  const isGenerating = loading && loadingMode === "prompt";
+  const isInstructing = loading && loadingMode === "instructions";
 
   return (
     <div className={styles.page}>
@@ -127,7 +148,7 @@ export default function App() {
           </span>
         </div>
         <p className={styles.subtitle}>
-          Upload documents or screenshots → get a ready-to-use SAP CPI iFlow prompt
+          Upload documents or screenshots → get a ready-to-use SAP CPI iFlow prompt or manual build guide
         </p>
       </header>
 
@@ -145,11 +166,20 @@ export default function App() {
               onClick={handleGenerate}
               disabled={files.length === 0 || loading}
             >
-              {loading
+              {isGenerating
                 ? <><span className={styles.spinner} /> Generating…</>
                 : "Generate Prompt"}
             </button>
-            {(files.length > 0 || prompt) && (
+            <button
+              className={styles.btnSecondary}
+              onClick={handleInstructions}
+              disabled={files.length === 0 || loading}
+            >
+              {isInstructing
+                ? <><span className={styles.spinner} /> Building guide…</>
+                : "Instructions"}
+            </button>
+            {(files.length > 0 || hasOutput) && (
               <button className={styles.btnGhost} onClick={handleReset} disabled={loading && !abortRef.current}>
                 {loading ? "Cancel" : "Reset"}
               </button>
@@ -160,30 +190,57 @@ export default function App() {
           {steps.length > 0 && <ProgressSteps steps={steps} />}
         </section>
 
-        {prompt && (
+        {hasOutput && (
           <section className={styles.card}>
-            <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>
-                <span className={styles.stepNum}>2</span>
-                Generated Prompt
-              </h2>
-              <button
-                className={styles.btnRetry}
-                onClick={handleGenerate}
-                disabled={loading}
-                title="Regenerate prompt from the same files"
-              >
-                {loading
-                  ? <><span className={styles.spinner} /> Regenerating…</>
-                  : "↺ Retry"}
-              </button>
+            <div className={styles.tabsRow}>
+              <div className={styles.tabs}>
+                <button
+                  className={`${styles.tab} ${activeTab === "prompt" ? styles.activeTab : ""}`}
+                  onClick={() => setActiveTab("prompt")}
+                >
+                  Prompt
+                </button>
+                <button
+                  className={`${styles.tab} ${activeTab === "instructions" ? styles.activeTab : ""}`}
+                  onClick={() => setActiveTab("instructions")}
+                >
+                  Instructions
+                </button>
+              </div>
+              <div className={styles.tabActions}>
+                {activeTab === "prompt" && (
+                  <button className={styles.btnRetry} onClick={handleGenerate} disabled={loading}>
+                    {isGenerating ? <><span className={styles.spinner} /> Regenerating…</> : "↺ Retry"}
+                  </button>
+                )}
+                {activeTab === "instructions" && (
+                  <button className={styles.btnRetry} onClick={handleInstructions} disabled={loading}>
+                    {isInstructing ? <><span className={styles.spinner} /> Regenerating…</> : "↺ Retry"}
+                  </button>
+                )}
+              </div>
             </div>
-            {warning && (
-              <div className={styles.warning} role="alert">
-                <strong>Review needed:</strong> {warning}
+
+            {activeTab === "prompt" && prompt && (
+              <>
+                {warning && <div className={styles.warning} role="alert"><strong>Review needed:</strong> {warning}</div>}
+                <PromptOutput prompt={prompt} loading={isGenerating} />
+              </>
+            )}
+            {activeTab === "prompt" && !prompt && (
+              <div className={styles.tabPlaceholder}>
+                <p>Click <strong>Generate Prompt</strong> to create the iFlow configuration prompt.</p>
               </div>
             )}
-            <PromptOutput prompt={prompt} loading={loading} />
+
+            {activeTab === "instructions" && instructions && (
+              <InstructionsOutput instructions={instructions} loading={isInstructing} />
+            )}
+            {activeTab === "instructions" && !instructions && (
+              <div className={styles.tabPlaceholder}>
+                <p>Click <strong>Instructions</strong> to generate the step-by-step manual build guide + Postman testing.</p>
+              </div>
+            )}
           </section>
         )}
       </main>

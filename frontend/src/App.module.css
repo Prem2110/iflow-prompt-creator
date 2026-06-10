@@ -242,6 +242,34 @@
   cursor: not-allowed;
 }
 
+/* ── Secondary button (Instructions) ── */
+.btnSecondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.4rem;
+  background: rgba(99, 62, 220, 0.12);
+  color: #a5b4fc;
+  border: 1px solid rgba(99, 62, 220, 0.35);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, color 0.15s, transform 0.12s;
+}
+
+.btnSecondary:hover:not(:disabled) {
+  background: rgba(99, 62, 220, 0.22);
+  border-color: rgba(129, 140, 248, 0.6);
+  color: #c4b5fd;
+  transform: translateY(-1px);
+}
+
+.btnSecondary:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
 /* ── Ghost button ── */
 .btnGhost {
   padding: 0.65rem 1.25rem;
@@ -269,6 +297,63 @@
   border-top-color: #fff;
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
+}
+
+/* ── Output tabs ── */
+.tabsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  margin: -1.75rem -1.75rem 1.5rem;
+  padding: 0 1.75rem;
+}
+
+.tabs {
+  display: flex;
+  gap: 0;
+}
+
+.tab {
+  padding: 0.85rem 1.15rem 0.8rem;
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #374151;
+  background: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+  margin-bottom: -1px;
+  letter-spacing: 0.01em;
+}
+
+.tab:hover {
+  color: #94a3b8;
+}
+
+.tab.activeTab {
+  color: #a5b4fc;
+  border-bottom-color: #6366f1;
+}
+
+.tabActions {
+  flex-shrink: 0;
+}
+
+.tabPlaceholder {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1.5rem;
+  gap: 1rem;
+  color: #374151;
+  text-align: center;
+}
+
+.tabPlaceholder p {
+  font-size: 0.9rem;
 }
 
 /* ── Feedback banners ── */

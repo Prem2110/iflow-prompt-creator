@@ -248,3 +248,151 @@ async def generate_prompt(files: List[UploadFile] = File(...)):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ── Instructions endpoint ─────────────────────────────────────────────────────
+
+_INSTRUCTIONS_SYSTEM = """You are a senior SAP CPI (Cloud Platform Integration) developer writing
+a complete, human-readable manual for a developer who will build and test an iFlow by hand.
+
+The user will provide technical documentation, business requirements, screenshots, or notes.
+Produce a step-by-step guide covering two areas:
+  1. How to build the iFlow manually inside the SAP CPI web UI.
+  2. How to test the running iFlow using Postman.
+
+Output ONLY the guide text — no preamble, no explanation, no markdown code fences.
+
+FORMATTING RULES:
+- Use ## for top-level sections and ### for sub-sections.
+- Number every action within a step (1. 2. 3. …).
+- Reference exact SAP CPI UI element names as they appear on screen
+  (e.g. "Integration Flow", "Sender", "Content Modifier", tab labels, field names).
+- Never skip a click. Every navigation path must be complete.
+- For the Postman section: include method, full URL pattern, authentication type,
+  all required headers, a realistic sample request body (JSON or XML as appropriate),
+  expected response status and shape, and at least two test cases.
+
+Required output structure (use these exact section headings):
+
+## [iFlow Name] — Step-by-Step Build Guide
+Package: [package-name]
+
+## Prerequisites
+- [SAP CPI tenant access with Developer role or equivalent]
+- [Any specific system/credential requirements derived from the scenario]
+
+## Step 1: [Action — e.g. "Create the Integration Package or Open Existing"]
+1. [Exact UI action]
+2. [Exact UI action]
+...
+
+## Step 2: [Next major action]
+1. ...
+...
+
+(one ## Step N section per major component or configuration area — Sender, each middleware
+component, Receiver, message mappings, error handling, etc.)
+
+## Testing with Postman
+
+### Endpoint Details
+- Method: [GET / POST / …]
+- URL: https://<your-tenant-host>/http/<path>
+- Authentication: [Basic Auth / OAuth2 Client Credentials / …]
+
+### Request Headers
+- [Header-Name]: [value or description]
+
+### Sample Request Body
+[Realistic JSON or XML sample — derive field names from the scenario]
+
+### Expected Response
+- Status: [HTTP code]
+- Body: [structure or sample]
+
+### Test Case 1 — Happy Path
+1. [Send request with …]
+2. [Verify status …]
+3. [Verify response body contains …]
+
+### Test Case 2 — [Error / Edge Case Name]
+1. [Send request with …]
+2. [Verify …]
+
+Rules:
+- ALL section headings listed above are REQUIRED.
+- Step sections must reference exact SAP CPI UI element names.
+- The Postman section must include method, URL, auth, headers, sample body, expected response,
+  and at least two test cases.
+- Derive iFlow name, package, endpoints, and field names from the uploaded content.
+  If something cannot be determined, use a clearly labelled placeholder like <your-endpoint>.
+"""
+
+_INSTRUCTIONS_SUFFIX = "\n\nGenerate the complete SAP CPI manual build guide and Postman testing instructions from the content above."
+
+
+async def _stream_instructions(files: List[UploadFile]) -> AsyncGenerator[str, None]:
+    for f in files:
+        ext = Path(f.filename or "").suffix.lower()
+        if ext not in _ALLOWED_EXTENSIONS:
+            yield _event("error", message=f"Unsupported file type '{ext}' for '{f.filename}'")
+            return
+
+    file_data_list: list[tuple[UploadFile, bytes]] = []
+    for f in files:
+        data = await f.read()
+        if len(data) > _MAX_FILE_SIZE:
+            yield _event("error",
+                         message=f"File '{f.filename}' exceeds {_MAX_FILE_SIZE // (1024*1024)} MB limit")
+            return
+        file_data_list.append((f, data))
+
+    yield _event("step", key="extract", message=f"Extracting content from {len(files)} file(s)…")
+    try:
+        extracted = [await extract(f, data) for f, data in file_data_list]
+        kinds = [e["kind"] for e in extracted]
+        logger.info("Instructions — extracted %d text and %d image file(s)",
+                    kinds.count("text"), kinds.count("image"))
+        yield _event("step_done", key="extract",
+                     message=f"Extracted {kinds.count('text')} text and {kinds.count('image')} image file(s)")
+    except Exception as exc:
+        logger.error("Instructions extraction failed: %s", exc, exc_info=True)
+        yield _event("error", message=f"File extraction failed: {exc}")
+        return
+
+    # Build user content with instructions suffix
+    extracted_with_suffix = [dict(e) for e in extracted]
+    user_content = _build_user_content(extracted_with_suffix)
+    if isinstance(user_content, str):
+        user_content = user_content.replace(SUFFIX.strip(), _INSTRUCTIONS_SUFFIX.strip())
+    else:
+        for part in reversed(user_content):
+            if part.get("type") == "text" and SUFFIX.strip() in part["text"]:
+                part["text"] = part["text"].replace(SUFFIX.strip(), _INSTRUCTIONS_SUFFIX.strip())
+                break
+
+    yield _event("step", key="generate", message="Claude is writing the step-by-step instructions…")
+    try:
+        gen = await _chat_complete(_INSTRUCTIONS_SYSTEM, user_content, stream=True)
+        result = ""
+        async for text in gen:
+            result += text
+            yield _event("chunk", text=text)
+        logger.info("Instructions complete: %d chars", len(result))
+        yield _event("step_done", key="generate", message="Instructions ready")
+    except Exception as exc:
+        logger.error("Instructions LLM call failed: %s", exc, exc_info=True)
+        yield _event("error", message=f"LLM call failed: {exc}")
+        return
+
+    yield _event("done", prompt=result)
+
+
+@router.post("/generate-instructions")
+async def generate_instructions(files: List[UploadFile] = File(...)):
+    logger.info("Instructions request — %d file(s): %s", len(files), [f.filename for f in files])
+    return StreamingResponse(
+        _stream_instructions(files),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
