@@ -144,6 +144,42 @@
 
 .para { margin: 0.15rem 0; color: #475569; }
 
+/* Markdown tables */
+.tableWrapper {
+  overflow-x: auto;
+  margin: 0.85rem 0;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.875rem;
+}
+
+.table th {
+  background: #f1f5f9;
+  color: #0f172a;
+  font-weight: 700;
+  text-align: left;
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid #e2e8f0;
+  white-space: nowrap;
+}
+
+.table td {
+  padding: 0.55rem 1rem;
+  border-bottom: 1px solid #f1f5f9;
+  color: #475569;
+  vertical-align: top;
+  line-height: 1.55;
+}
+
+.table tbody tr:last-child td { border-bottom: none; }
+
+.table tbody tr:nth-child(even) td { background: #f8fafc; }
+
 .spacer { height: 0.5rem; }
 
 /* Blinking cursor while streaming */
