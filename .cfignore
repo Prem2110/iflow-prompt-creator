@@ -13,8 +13,8 @@ test_wbs.py
 __pycache__/
 *.py[cod]
 *.egg-info/
-build/
-dist/
+/build/
+/dist/
 
 # Frontend source (dist/ is included; node_modules are not needed on CF)
 frontend/node_modules/
