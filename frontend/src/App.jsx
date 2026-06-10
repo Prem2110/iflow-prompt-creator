@@ -58,7 +58,7 @@ export default function App() {
 
         buffer += decoder.decode(value, { stream: true });
         const lines = buffer.split("\n");
-        buffer = lines.pop(); // keep incomplete line
+        buffer = lines.pop();
 
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
@@ -72,7 +72,6 @@ export default function App() {
           } else if (event.status === "step_done") {
             upsertStep(event.key, "done", event.message);
           } else if (event.status === "chunk") {
-            // Streaming text chunk — append to prompt in real-time
             setPrompt((prev) => prev + event.text);
           } else if (event.status === "error") {
             setError(event.message);
@@ -80,7 +79,6 @@ export default function App() {
             setSteps((prev) =>
               prev.map((s) => (s.state === "active" ? { ...s, state: "error" } : s))
             );
-            // Break out of the reading loop on error
             controller.abort();
             return;
           } else if (event.status === "done") {
@@ -91,10 +89,7 @@ export default function App() {
         }
       }
     } catch (err) {
-      if (err.name === "AbortError") {
-        // Silently handle user-initiated abort
-        return;
-      }
+      if (err.name === "AbortError") return;
       setError(err.message);
     } finally {
       setLoading(false);
@@ -103,9 +98,7 @@ export default function App() {
   }
 
   function handleReset() {
-    if (abortRef.current) {
-      abortRef.current.abort();
-    }
+    if (abortRef.current) abortRef.current.abort();
     setFiles([]);
     setSteps([]);
     setPrompt("");
@@ -116,10 +109,22 @@ export default function App() {
 
   return (
     <div className={styles.page}>
+      <div className={styles.orbs} aria-hidden="true">
+        <div className={`${styles.orb} ${styles.orb1}`} />
+        <div className={`${styles.orb} ${styles.orb2}`} />
+        <div className={`${styles.orb} ${styles.orb3}`} />
+      </div>
+
       <header className={styles.header}>
         <div className={styles.logo}>
           <span className={styles.logoIcon}>⚡</span>
-          <span>IFS Prompt Generator</span>
+          <span className={styles.logoText}>IFS Prompt Generator</span>
+        </div>
+        <div>
+          <span className={styles.badge}>
+            <span className={styles.badgeDot} />
+            Powered by SAP AI Core · Claude
+          </span>
         </div>
         <p className={styles.subtitle}>
           Upload documents or screenshots → get a ready-to-use SAP CPI iFlow prompt
@@ -128,7 +133,10 @@ export default function App() {
 
       <main className={styles.main}>
         <section className={styles.card}>
-          <h2 className={styles.sectionTitle}>1. Upload Files</h2>
+          <h2 className={styles.sectionTitle}>
+            <span className={styles.stepNum}>1</span>
+            Upload Files
+          </h2>
           <FileUpload files={files} onChange={setFiles} disabled={loading} />
 
           <div className={styles.actions}>
@@ -149,14 +157,16 @@ export default function App() {
           </div>
 
           {error && <p className={styles.error} role="alert">{error}</p>}
-
           {steps.length > 0 && <ProgressSteps steps={steps} />}
         </section>
 
         {prompt && (
           <section className={styles.card}>
             <div className={styles.sectionHeader}>
-              <h2 className={styles.sectionTitle}>2. Generated Prompt</h2>
+              <h2 className={styles.sectionTitle}>
+                <span className={styles.stepNum}>2</span>
+                Generated Prompt
+              </h2>
               <button
                 className={styles.btnRetry}
                 onClick={handleGenerate}
@@ -173,7 +183,7 @@ export default function App() {
                 <strong>Review needed:</strong> {warning}
               </div>
             )}
-            <PromptOutput prompt={prompt} />
+            <PromptOutput prompt={prompt} loading={loading} />
           </section>
         )}
       </main>

@@ -1,7 +1,7 @@
 import { useState } from "react";
 import styles from "./PromptOutput.module.css";
 
-export default function PromptOutput({ prompt }) {
+export default function PromptOutput({ prompt, loading = false }) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -13,12 +13,18 @@ export default function PromptOutput({ prompt }) {
   return (
     <div className={styles.container}>
       <div className={styles.toolbar}>
-        <span className={styles.label}>SAP CPI iFlow Prompt</span>
-        <button className={styles.copyBtn} onClick={handleCopy}>
+        <div className={styles.toolbarLeft}>
+          <span className={styles.label}>SAP CPI iFlow Prompt</span>
+          <span className={styles.charCount}>{prompt.length.toLocaleString()} chars</span>
+        </div>
+        <button
+          className={`${styles.copyBtn} ${copied ? styles.copied : ""}`}
+          onClick={handleCopy}
+        >
           {copied ? "✓ Copied!" : "Copy"}
         </button>
       </div>
-      <pre className={styles.output}>{prompt}</pre>
+      <pre className={`${styles.output} ${loading ? styles.streaming : ""}`}>{prompt}</pre>
     </div>
   );
 }

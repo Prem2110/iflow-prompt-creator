@@ -6,18 +6,46 @@
 
 body {
   font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  background: #0f1117;
+  background-color: #07091a;
+  background-image:
+    radial-gradient(ellipse 70% 55% at 10% -5%,  rgba(99,  62, 220, 0.22) 0%, transparent 60%),
+    radial-gradient(ellipse 55% 45% at 90% 100%, rgba(6,  182, 212, 0.15) 0%, transparent 55%),
+    radial-gradient(ellipse 50% 60% at 55%  55%, rgba(139, 92, 246, 0.07) 0%, transparent 50%);
+  background-attachment: fixed;
   color: #e2e8f0;
   min-height: 100vh;
 }
 
-::-webkit-scrollbar {
-  width: 6px;
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(99, 62, 220, 0.4); border-radius: 3px; }
+
+@keyframes floatOrb {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  33%       { transform: translate(30px, -20px) scale(1.05); }
+  66%       { transform: translate(-15px, 25px) scale(0.97); }
 }
-::-webkit-scrollbar-track {
-  background: #1e2330;
+
+@keyframes shimmer {
+  0%   { left: -75%; }
+  100% { left: 125%; }
 }
-::-webkit-scrollbar-thumb {
-  background: #3a4561;
-  border-radius: 3px;
+
+@keyframes pulseDot {
+  0%, 100% { opacity: 0.6; transform: scale(1); }
+  50%       { opacity: 1;   transform: scale(1.25); }
+}
+
+@keyframes blinkCursor {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
 }
