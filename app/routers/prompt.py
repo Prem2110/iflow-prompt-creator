@@ -6,7 +6,7 @@ from typing import AsyncGenerator, List
 from fastapi import APIRouter, File, UploadFile
 from fastapi.responses import StreamingResponse
 
-from app.services.aicore import chat_complete
+from app.services.aicore import chat_complete as _chat_complete
 from app.services.extractor import extract
 from app.services.validator import validate
 
@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api")
 # Maximum file size: 20 MB
 _MAX_FILE_SIZE = 20 * 1024 * 1024
 
-_ALLOWED_EXTENSIONS = {".pdf", ".docx", ".doc", ".txt", ".png", ".jpg", ".jpeg", ".webp", ".gif"}
+_ALLOWED_EXTENSIONS = {".pdf", ".docx", ".doc", ".pptx", ".xlsx", ".xls", ".csv", ".txt", ".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
 _SYSTEM = """You are an expert SAP CPI (Cloud Platform Integration) architect.
 
@@ -176,20 +176,28 @@ async def _stream(files: List[UploadFile]) -> AsyncGenerator[str, None]:
     try:
         extracted = [await extract(f, data) for f, data in file_data_list]
         kinds = [e["kind"] for e in extracted]
+        logger.info("Extracted %d text and %d image file(s)", kinds.count("text"), kinds.count("image"))
         yield _event("step_done", key="extract",
                      message=f"Extracted {kinds.count('text')} text and {kinds.count('image')} image file(s)")
     except Exception as exc:
+        logger.error("File extraction failed: %s", exc, exc_info=True)
         yield _event("error", message=f"File extraction failed: {exc}")
         return
 
     user_content = _build_user_content(extracted)
 
-    # Step 2 — generate
+    # Step 2 — generate (streaming)
     yield _event("step", key="generate", message="Claude is generating the iFlow prompt…")
     try:
-        result = await chat_complete(_SYSTEM, user_content)
+        gen = await _chat_complete(_SYSTEM, user_content, stream=True)
+        result = ""
+        async for text in gen:
+            result += text
+            yield _event("chunk", text=text)
+        logger.info("Generation complete: %d chars", len(result))
         yield _event("step_done", key="generate", message="Response received from Claude")
     except Exception as exc:
+        logger.error("LLM generation failed: %s", exc, exc_info=True)
         yield _event("error", message=f"LLM call failed: {exc}")
         return
 
@@ -198,25 +206,34 @@ async def _stream(files: List[UploadFile]) -> AsyncGenerator[str, None]:
     validation = validate(result)
 
     if validation.is_valid:
+        logger.info("Validation passed")
         yield _event("step_done", key="validate", message="All required sections present")
         yield _event("done", prompt=result, valid=True, warning=None)
         return
 
-    # Step 4 — retry (if validation failed)
+    # Step 4 — retry (if validation failed, streaming)
+    logger.warning("Validation failed — missing: %s. Triggering retry.", validation.missing)
     yield _event("step_done", key="validate",
                  message=f"Incomplete — missing: {', '.join(validation.missing)}")
     yield _event("step", key="retry",
                  message=f"Retrying with stricter prompt (missing: {', '.join(validation.missing)})…")
     try:
         retry_content = _retry_content(result, validation.missing, user_content)
-        result = await chat_complete(_RETRY_SYSTEM, retry_content)
+        gen = await _chat_complete(_RETRY_SYSTEM, retry_content, stream=True)
+        result = ""
+        async for text in gen:
+            result += text
+            yield _event("chunk", text=text)
         validation = validate(result)
         if validation.is_valid:
+            logger.info("Retry successful")
             yield _event("step_done", key="retry", message="Retry successful — all sections present")
         else:
+            logger.warning("Retry still missing: %s", validation.missing)
             yield _event("step_done", key="retry",
                          message=f"Still missing after retry: {', '.join(validation.missing)}")
     except Exception as exc:
+        logger.error("Retry LLM call failed: %s", exc, exc_info=True)
         yield _event("step_done", key="retry", message=f"Retry failed: {exc}")
 
     yield _event("done", prompt=result, valid=validation.is_valid, warning=validation.warning)

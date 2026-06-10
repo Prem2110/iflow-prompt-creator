@@ -1,6 +1,6 @@
 # IFS Prompt Generator
 
-Uploads documents (PDF, DOCX, TXT) or screenshots and generates a ready-to-use **SAP CPI iFlow configuration prompt** using Claude on SAP AI Core. The prompt is designed to be pasted into a separate SAP CPI iFlow builder.
+Uploads documents (PDF, DOCX, PPTX, XLSX, CSV, TXT) or screenshots and generates a ready-to-use **SAP CPI iFlow configuration prompt** using Claude on SAP AI Core. The prompt is designed to be pasted into a separate SAP CPI iFlow builder.
 
 ## Quick Start
 
@@ -36,10 +36,10 @@ UI available at `http://localhost:5173`
 
 ## How it works
 
-1. User uploads one or more files (PDF / DOCX / TXT / PNG / JPG)
+1. User uploads one or more files (PDF / DOCX / PPTX / XLSX / CSV / TXT / PNG / JPG)
 2. Backend extracts text (or encodes images as base64)
 3. All content is sent to Claude on SAP AI Core as a single prompt
-4. Claude returns a structured SAP CPI iFlow configuration prompt
+4. Claude returns a structured SAP CPI iFlow configuration prompt (streamed token-by-token)
 5. User copies the prompt and pastes it into the iFlow builder
 
 ## API
@@ -48,10 +48,14 @@ UI available at `http://localhost:5173`
 
 Accepts `multipart/form-data` with one or more `files`.
 
-**Response**
-```json
-{ "prompt": "Create an SAP CPI iFlow with the following configuration..." }
-```
+**Response** — Server-Sent Events (SSE) stream:
+
+| Event | Description |
+|---|---|
+| `step` / `step_done` | Progress updates for extract, generate, validate, retry |
+| `chunk` | Streaming text token from Claude |
+| `done` | Final prompt with validation result |
+| `error` | Error message |
 
 ## Supported file types
 
@@ -59,6 +63,9 @@ Accepts `multipart/form-data` with one or more `files`.
 |---|---|
 | PDF | `.pdf` |
 | Word | `.docx`, `.doc` |
+| PowerPoint | `.pptx` |
+| Excel | `.xlsx`, `.xls` |
+| CSV | `.csv` |
 | Plain text | `.txt` |
 | Images | `.png`, `.jpg`, `.jpeg`, `.webp` |
 
@@ -72,3 +79,5 @@ Accepts `multipart/form-data` with one or more `files`.
 | `AICORE_BASE_URL` | AI Core API base URL (includes `/v2`) |
 | `AICORE_RESOURCE_GROUP` | Resource group (default: `default`) |
 | `LLM_DEPLOYMENT_ID` | Claude deployment ID in SAP AI Core |
+| `LLM_TIMEOUT` | LLM request timeout in seconds (default: `120`) |
+| `CORS_ORIGINS` | Comma-separated allowed CORS origins (default: `http://localhost:5173`) |

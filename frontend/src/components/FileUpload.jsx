@@ -1,7 +1,7 @@
 import { useRef, useState } from "react";
 import styles from "./FileUpload.module.css";
 
-const ACCEPTED = ".pdf,.docx,.doc,.txt,.png,.jpg,.jpeg,.webp";
+const ACCEPTED = ".pdf,.docx,.doc,.pptx,.xlsx,.xls,.csv,.txt,.png,.jpg,.jpeg,.webp,.gif";
 
 export default function FileUpload({ files, onChange, disabled = false }) {
   const inputRef = useRef(null);
@@ -37,6 +37,8 @@ export default function FileUpload({ files, onChange, disabled = false }) {
     const ext = name.split(".").pop().toLowerCase();
     if (ext === "pdf") return "📄";
     if (["doc", "docx"].includes(ext)) return "📝";
+    if (ext === "pptx") return "📊";
+    if (["xlsx", "xls", "csv"].includes(ext)) return "📋";
     if (ext === "txt") return "🗒️";
     return "🖼️";
   };
@@ -69,7 +71,7 @@ export default function FileUpload({ files, onChange, disabled = false }) {
           <p className={styles.dropText}>
             Drag &amp; drop files here, or <span className={styles.browse}>browse</span>
           </p>
-          <p className={styles.dropHint}>PDF, DOCX, TXT, PNG, JPG — multiple files supported</p>
+          <p className={styles.dropHint}>PDF, DOCX, PPTX, XLSX, CSV, TXT, PNG, JPG — multiple files supported</p>
         </div>
       </div>
 

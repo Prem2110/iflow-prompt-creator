@@ -66,8 +66,14 @@ export default function App() {
 
           if (event.status === "step") {
             upsertStep(event.key, "active", event.message);
+            if (event.key === "retry") {
+              setPrompt("");
+            }
           } else if (event.status === "step_done") {
             upsertStep(event.key, "done", event.message);
+          } else if (event.status === "chunk") {
+            // Streaming text chunk — append to prompt in real-time
+            setPrompt((prev) => prev + event.text);
           } else if (event.status === "error") {
             setError(event.message);
             setLoading(false);

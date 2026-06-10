@@ -1,0 +1,31 @@
+# Secrets — set via `cf set-env` instead
+.env
+.env.*
+!.env.example
+
+# Dev tooling
+.venv/
+dev.ps1
+test_wbs.py
+.python-version
+
+# Build artefacts / caches
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+
+# Frontend source (dist/ is included; node_modules are not needed on CF)
+frontend/node_modules/
+frontend/src/
+frontend/public/
+frontend/index.html
+frontend/vite.config.js
+frontend/package.json
+frontend/package-lock.json
+
+# Git / IDE
+.git/
+.gitignore
+.claude/

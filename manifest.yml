@@ -1,0 +1,25 @@
+---
+applications:
+  - name: ifs-prompt
+    memory: 512M
+    disk_quota: 1G
+    buildpacks:
+      - python_buildpack
+    command: uvicorn main:app --host 0.0.0.0 --port $PORT
+    health-check-type: http
+    health-check-http-endpoint: /health
+    health-check-invocation-timeout: 60
+
+    # Non-secret defaults — override with `cf set-env` as needed
+    env:
+      AICORE_RESOURCE_GROUP: default
+      LLM_TIMEOUT: "120"
+
+    # Set secrets before deploying:
+    #   cf set-env ifs-prompt AICORE_CLIENT_ID     <value>
+    #   cf set-env ifs-prompt AICORE_CLIENT_SECRET <value>
+    #   cf set-env ifs-prompt AICORE_AUTH_URL      <value>
+    #   cf set-env ifs-prompt AICORE_BASE_URL      <value>
+    #   cf set-env ifs-prompt LLM_DEPLOYMENT_ID    <value>
+    #
+    # CORS_ORIGINS is not required — the SPA is served from the same origin.

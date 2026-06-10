@@ -1,13 +1,14 @@
 import logging
+import os
+from pathlib import Path
 
 from dotenv import load_dotenv
 
 load_dotenv()
 
-import os
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from app.routers.prompt import router
 
@@ -31,3 +32,14 @@ app.add_middleware(
 )
 
 app.include_router(router)
+
+
+@app.get("/health")
+async def health():
+    return {"ok": True}
+
+
+# Serve the built React SPA in production (must be last — catches all remaining routes)
+_dist = Path(__file__).parent / "frontend" / "dist"
+if _dist.is_dir():
+    app.mount("/", StaticFiles(directory=str(_dist), html=True), name="static")
