@@ -300,6 +300,40 @@
 
 .btnSecondary:disabled { opacity: 0.4; cursor: not-allowed; }
 
+/* Tertiary — outlined teal */
+.btnTertiary {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.65rem 1.4rem;
+  background: rgba(6, 182, 212, 0.06);
+  color: #0891b2;
+  border: 1px solid rgba(6, 182, 212, 0.28);
+  border-radius: 8px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+}
+
+.btnTertiary:hover:not(:disabled) {
+  background: rgba(6, 182, 212, 0.12);
+  border-color: rgba(6, 182, 212, 0.48);
+  transform: translateY(-1px);
+}
+
+.btnTertiary:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.spinnerTeal {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(8, 145, 178, 0.3);
+  border-top-color: #0891b2;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
 /* Ghost */
 .btnGhost {
   padding: 0.65rem 1.25rem;

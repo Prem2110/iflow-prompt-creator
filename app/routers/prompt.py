@@ -424,3 +424,123 @@ async def generate_instructions(files: List[UploadFile] = File(...)):
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ── Summary endpoint ──────────────────────────────────────────────────────────
+
+_SUMMARY_SYSTEM = """You are an expert SAP CPI (Cloud Platform Integration) architect.
+
+The user will provide technical documentation, business requirements, screenshots, or notes
+describing an integration scenario. Produce a concise, scannable summary that gives a developer
+or stakeholder an instant understanding of what this iFlow does and how it is built.
+
+Output ONLY the summary — no preamble, no explanation, no markdown code fences.
+
+FORMATTING RULES:
+- Use ## for top-level sections and ### for sub-sections.
+- Keep the entire summary under 500 words.
+- Be specific: name adapters, endpoints, and data objects. Avoid vague phrases like "processes data".
+
+Required output structure (use these exact headings):
+
+## [iFlow Name]
+**Package:** [package-name]
+**Purpose:** [One sentence: what business problem this integration solves.]
+
+## What It Does
+[2–3 sentences in plain English describing the end-to-end data flow — what comes in, what
+transformations happen, and where the data ends up.]
+
+## Integration Topology
+[List every connection as a bullet: Sender → Step → … → Receiver, naming the adapter on each channel.]
+- Sender → [adapter] → [Step]
+- [Step] → [adapter/type] → [Step]
+- …
+
+## Adapters & Protocols
+| Component | Adapter / Type | Notes |
+|---|---|---|
+| [name] | [adapter] | [brief note] |
+…
+
+## Key Configuration
+- [Most important config detail — URL, auth method, namespace, XPath, etc.]
+- [Next detail]
+(up to 5 bullets — only hard facts, no general advice)
+
+## Gotchas
+- [Any non-obvious constraint, CSRF requirement, cert needed, transformation quirk, etc.]
+(omit this section entirely if there are no notable gotchas)
+
+Rules:
+- All sections above except "## Gotchas" are REQUIRED.
+- Derive iFlow name and package from context; invent appropriate names if not stated.
+- Use placeholders like <your-tenant-host> for values that cannot be determined.
+"""
+
+_SUMMARY_SUFFIX = "\n\nGenerate the concise iFlow summary from the content above."
+
+
+async def _stream_summary(files: List[UploadFile]) -> AsyncGenerator[str, None]:
+    for f in files:
+        ext = Path(f.filename or "").suffix.lower()
+        if ext not in _ALLOWED_EXTENSIONS:
+            yield _event("error", message=f"Unsupported file type '{ext}' for '{f.filename}'")
+            return
+
+    file_data_list: list[tuple[UploadFile, bytes]] = []
+    for f in files:
+        data = await f.read()
+        if len(data) > _MAX_FILE_SIZE:
+            yield _event("error",
+                         message=f"File '{f.filename}' exceeds {_MAX_FILE_SIZE // (1024*1024)} MB limit")
+            return
+        file_data_list.append((f, data))
+
+    yield _event("step", key="extract", message=f"Extracting content from {len(files)} file(s)…")
+    try:
+        extracted = [await extract(f, data) for f, data in file_data_list]
+        kinds = [e["kind"] for e in extracted]
+        logger.info("Summary — extracted %d text and %d image file(s)",
+                    kinds.count("text"), kinds.count("image"))
+        yield _event("step_done", key="extract",
+                     message=f"Extracted {kinds.count('text')} text and {kinds.count('image')} image file(s)")
+    except Exception as exc:
+        logger.error("Summary extraction failed: %s", exc, exc_info=True)
+        yield _event("error", message=f"File extraction failed: {exc}")
+        return
+
+    user_content = _build_user_content(extracted)
+    if isinstance(user_content, str):
+        user_content = user_content.replace(SUFFIX.strip(), _SUMMARY_SUFFIX.strip())
+    else:
+        for part in reversed(user_content):
+            if part.get("type") == "text" and SUFFIX.strip() in part["text"]:
+                part["text"] = part["text"].replace(SUFFIX.strip(), _SUMMARY_SUFFIX.strip())
+                break
+
+    yield _event("step", key="generate", message="Claude is summarising the iFlow…")
+    try:
+        gen = await _chat_complete(_SUMMARY_SYSTEM, user_content, stream=True, max_tokens=2048)
+        result = ""
+        async for text in gen:
+            result += text
+            yield _event("chunk", text=text)
+        logger.info("Summary complete: %d chars", len(result))
+        yield _event("step_done", key="generate", message="Summary ready")
+    except Exception as exc:
+        logger.error("Summary LLM call failed: %s", exc, exc_info=True)
+        yield _event("error", message=f"LLM call failed: {exc}")
+        return
+
+    yield _event("done", prompt=result)
+
+
+@router.post("/summarize")
+async def summarize(files: List[UploadFile] = File(...)):
+    logger.info("Summary request — %d file(s): %s", len(files), [f.filename for f in files])
+    return StreamingResponse(
+        _stream_summary(files),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

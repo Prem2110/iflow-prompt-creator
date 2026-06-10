@@ -11,11 +11,12 @@ export default function App() {
 
   const [prompt, setPrompt] = useState("");
   const [instructions, setInstructions] = useState("");
+  const [summary, setSummary] = useState("");
   const [activeTab, setActiveTab] = useState("prompt");
 
   const [warning, setWarning] = useState("");
   const [loading, setLoading] = useState(false);
-  const [loadingMode, setLoadingMode] = useState(null); // "prompt" | "instructions"
+  const [loadingMode, setLoadingMode] = useState(null); // "prompt" | "instructions" | "summary"
   const [error, setError] = useState("");
   const abortRef = useRef(null);
 
@@ -111,12 +112,21 @@ export default function App() {
     await streamFrom("/api/generate-instructions", setInstructions);
   }
 
+  async function handleSummary() {
+    if (files.length === 0) return;
+    setActiveTab("summary");
+    setLoadingMode("summary");
+    setSummary("");
+    await streamFrom("/api/summarize", setSummary);
+  }
+
   function handleReset() {
     if (abortRef.current) abortRef.current.abort();
     setFiles([]);
     setSteps([]);
     setPrompt("");
     setInstructions("");
+    setSummary("");
     setWarning("");
     setError("");
     setLoading(false);
@@ -124,9 +134,10 @@ export default function App() {
     setActiveTab("prompt");
   }
 
-  const hasOutput = prompt || instructions;
+  const hasOutput = prompt || instructions || summary;
   const isGenerating = loading && loadingMode === "prompt";
   const isInstructing = loading && loadingMode === "instructions";
+  const isSummarising = loading && loadingMode === "summary";
 
   return (
     <div className={styles.page}>
@@ -165,6 +176,7 @@ export default function App() {
               className={styles.btnPrimary}
               onClick={handleGenerate}
               disabled={files.length === 0 || loading}
+              title="Generate a ready-to-use SAP CPI iFlow configuration prompt from your uploaded files"
             >
               {isGenerating
                 ? <><span className={styles.spinner} /> Generating…</>
@@ -174,10 +186,21 @@ export default function App() {
               className={styles.btnSecondary}
               onClick={handleInstructions}
               disabled={files.length === 0 || loading}
+              title="Generate a step-by-step manual build guide with scripts and Postman testing instructions"
             >
               {isInstructing
                 ? <><span className={styles.spinner} /> Building guide…</>
                 : "Instructions"}
+            </button>
+            <button
+              className={styles.btnTertiary}
+              onClick={handleSummary}
+              disabled={files.length === 0 || loading}
+              title="Get a concise overview of the iFlow — purpose, topology, adapters, and key configuration"
+            >
+              {isSummarising
+                ? <><span className={styles.spinnerTeal} /> Summarising…</>
+                : "Summarize"}
             </button>
             {(files.length > 0 || hasOutput) && (
               <button className={styles.btnGhost} onClick={handleReset} disabled={loading && !abortRef.current}>
@@ -206,6 +229,12 @@ export default function App() {
                 >
                   Instructions
                 </button>
+                <button
+                  className={`${styles.tab} ${activeTab === "summary" ? styles.activeTab : ""}`}
+                  onClick={() => setActiveTab("summary")}
+                >
+                  Summary
+                </button>
               </div>
               <div className={styles.tabActions}>
                 {activeTab === "prompt" && (
@@ -216,6 +245,11 @@ export default function App() {
                 {activeTab === "instructions" && (
                   <button className={styles.btnRetry} onClick={handleInstructions} disabled={loading}>
                     {isInstructing ? <><span className={styles.spinner} /> Regenerating…</> : "↺ Retry"}
+                  </button>
+                )}
+                {activeTab === "summary" && (
+                  <button className={styles.btnRetry} onClick={handleSummary} disabled={loading}>
+                    {isSummarising ? <><span className={styles.spinner} /> Regenerating…</> : "↺ Retry"}
                   </button>
                 )}
               </div>
@@ -239,6 +273,15 @@ export default function App() {
             {activeTab === "instructions" && !instructions && (
               <div className={styles.tabPlaceholder}>
                 <p>Click <strong>Instructions</strong> to generate the step-by-step manual build guide + Postman testing.</p>
+              </div>
+            )}
+
+            {activeTab === "summary" && summary && (
+              <InstructionsOutput instructions={summary} loading={isSummarising} />
+            )}
+            {activeTab === "summary" && !summary && (
+              <div className={styles.tabPlaceholder}>
+                <p>Click <strong>Summarize</strong> to get a concise overview of the iFlow — purpose, topology, adapters, and key config.</p>
               </div>
             )}
           </section>
