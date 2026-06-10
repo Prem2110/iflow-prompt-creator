@@ -40,7 +40,7 @@ async def _get_token() -> str:
         return _token_cache["token"]
 
 
-async def chat_complete(system: str, user_content, stream: bool = False):
+async def chat_complete(system: str, user_content, stream: bool = False, max_tokens: int = 4096):
     """
     Calls the Claude deployment on SAP AI Core using the Anthropic Messages API format.
     The endpoint is /invoke for non-streaming and /invoke with stream=true for streaming.
@@ -64,7 +64,7 @@ async def chat_complete(system: str, user_content, stream: bool = False):
     }
     payload = {
         "anthropic_version": "bedrock-2023-05-31",
-        "max_tokens": 4096,
+        "max_tokens": max_tokens,
         "system": system,
         "messages": [
             {"role": "user", "content": user_content},

@@ -373,7 +373,7 @@ async def _stream_instructions(files: List[UploadFile]) -> AsyncGenerator[str, N
 
     yield _event("step", key="generate", message="Claude is writing the step-by-step instructions…")
     try:
-        gen = await _chat_complete(_INSTRUCTIONS_SYSTEM, user_content, stream=True)
+        gen = await _chat_complete(_INSTRUCTIONS_SYSTEM, user_content, stream=True, max_tokens=8192)
         result = ""
         async for text in gen:
             result += text
