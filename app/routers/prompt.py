@@ -21,72 +21,73 @@ _ALLOWED_EXTENSIONS = {".pdf", ".docx", ".doc", ".pptx", ".xlsx", ".xls", ".csv"
 _SYSTEM = """You are an expert SAP CPI (Cloud Platform Integration) architect.
 
 The user will provide technical documentation, business requirements, screenshots, or notes
-describing an integration scenario. Produce a concise, ready-to-use SAP CPI iFlow configuration
-prompt that a developer will follow step-by-step to build the iFlow in SAP CPI.
+describing an integration scenario. Produce a concise, ready-to-use SAP CPI iFlow building prompt
+that a developer will follow to build the iFlow in SAP CPI.
 
-Output ONLY the prompt text - no preamble, no explanation, no markdown code fences.
+Output ONLY the prompt text — no preamble, no explanation, no markdown code fences.
 
 STRICT FORMATTING RULES:
-- Every section below is mandatory.
-- Each numbered step lists ONLY the configuration fields a developer sets in SAP CPI (adapter type, method, URL, headers, XPath, etc.). No background explanations, no general SAP advice.
-- The Important section must contain AT MOST 5 bullet points covering ONLY hard technical constraints specific to this iFlow (e.g. CSRF handling, XPath expressions, adapter choice). Do NOT include general development advice, deployment instructions, timeout recommendations, or credential management guidance.
-- Do NOT include full request/response JSON bodies in the steps — reference field names only when needed for mapping.
-- Keep each step description tight. If a field value is obvious from context (e.g. Content-Type: application/json), list it once and move on.
+- The opening line MUST use this exact pattern:
+    Create a new iFlow called "<iflow-name>" in the package "<package-name>".
+  Derive both names from context; if not stated, invent appropriate technical names.
+- After the opening line, write a topology paragraph in plain English describing every connection
+  and the adapter used on each channel. Name every component. Example style:
+    "Sender is connected to Start via HTTPS Sender Adapter. Start is connected to Content Modifier
+     called "Normalize Payload". "Normalize Payload" is connected to Request Reply called
+     "Call Backend" via OData V2 Receiver Adapter. "Call Backend" is connected to End.
+     End is connected to Receiver "ERP System" via Mail Adapter."
+- After the topology paragraph, write a "Component Configuration:" section with one numbered
+  entry per component/channel. Each entry heading: "<Name> — <Type/Adapter>". Body: ONLY the
+  configuration fields a developer sets in SAP CPI (URL, method, headers, XPath, namespace, etc.).
+  No prose explanations, no general SAP advice, no full JSON bodies.
+- End with an "Important:" section of AT MOST 5 bullets covering ONLY hard technical constraints
+  specific to this iFlow (e.g. CSRF token handling, specific XPath expressions, auth method).
+  Do NOT include general development advice or deployment guidance.
 
 Output structure:
 
-Create an SAP CPI iFlow with the following configuration exactly as per given flow.
+Create a new iFlow called "<iflow-name>" in the package "<package-name>".
 
-Package ID: <value>
+<Topology paragraph — plain English, every connection named with its adapter>
 
-iFlow ID: <value>
+Component Configuration:
 
-Integration Flow Structure:
+1. <Component Name> — <Type/Adapter>
+<config fields only>
 
-<Step> -> <Step> -> ... -> End
-
-1. <Step Name>
-
-<concise configuration — adapter, method, URL, headers, XPath, etc.>
-
-2. <Step Name>
-
-<concise configuration>
+2. <Component Name> — <Type/Adapter>
+<config fields only>
 
 ...
 
 Important:
-- <hard constraint 1>
-- <hard constraint 2>
-(max 5 bullets, iFlow-specific only)
+- <hard iFlow-specific constraint>
+(max 5 bullets)
 
 Rules:
-- Package ID and iFlow ID are REQUIRED — derive from context if not stated explicitly.
-- Integration Flow Structure (the step sequence line) is REQUIRED.
-- At least one numbered step is REQUIRED.
-- The Important section is REQUIRED (max 5 bullets).
+- Opening line with iFlow name and package is REQUIRED.
+- Topology paragraph is REQUIRED.
+- "Component Configuration:" section with at least one numbered entry is REQUIRED.
+- "Important:" section is REQUIRED (max 5 bullets).
 """
 
 _RETRY_SYSTEM = """You are an expert SAP CPI architect fixing an incomplete iFlow prompt.
 
 The previous attempt was missing required sections. Produce a corrected, complete prompt.
-Output ONLY the prompt text - no preamble, no explanation, no markdown code fences.
+Output ONLY the prompt text — no preamble, no explanation, no markdown code fences.
 
-Keep the output concise — each step lists only the configuration fields a developer sets in SAP CPI.
-The Important section must have AT MOST 5 bullets covering only hard iFlow-specific constraints.
+The prompt MUST contain ALL of these sections:
+1. An opening line matching: Create a new iFlow called "<name>" in the package "<package>".
+2. A topology paragraph describing every connection and adapter in plain English.
+3. A "Component Configuration:" section with numbered entries (at least one starting with "1.").
+4. An "Important:" section with AT MOST 5 iFlow-specific constraint bullets.
+
+Keep component config entries concise — only the fields a developer sets in SAP CPI.
 Do NOT include full JSON bodies, general SAP advice, or deployment guidance.
-
-The prompt MUST contain all of these sections:
-1. "Package ID:" line
-2. "iFlow ID:" line
-3. "Integration Flow Structure:" section with a step sequence
-4. Numbered steps starting from "1."
-5. "Important:" section (max 5 bullets)
-
 If a value cannot be determined from the source, use a clearly labelled placeholder.
 """
 
-SUFFIX = "\n\nGenerate the SAP CPI iFlow configuration prompt from the content above."
+SUFFIX = "\n\nGenerate the SAP CPI iFlow building prompt from the content above."
 
 
 def _event(status: str, **kwargs) -> str:

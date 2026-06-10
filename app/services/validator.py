@@ -2,11 +2,10 @@ import re
 from dataclasses import dataclass, field
 
 _REQUIRED = {
-    "Package ID":               r"Package ID\s*:",
-    "iFlow ID":                 r"iFlow ID\s*:",
-    "Integration Flow Structure": r"Integration Flow Structure\s*:",
-    "Numbered step":            r"(?:^|\n)\s*1\s*\.",
-    "Important section":        r"(?:^|\n)\s*Important\s*:",
+    "Opening line (Create a new iFlow called)": r'Create a new iFlow called\s*["“]',
+    "Component Configuration section":          r"Component Configuration\s*:",
+    "Numbered step":                            r"(?:^|\n)\s*1\s*\.",
+    "Important section":                        r"(?:^|\n)\s*Important\s*:",
 }
 
 
@@ -25,7 +24,6 @@ class ValidationResult:
 def validate(text: str) -> ValidationResult:
     missing = []
     for label, pattern in _REQUIRED.items():
-        flags = re.MULTILINE
-        if not re.search(pattern, text, flags):
+        if not re.search(pattern, text, re.MULTILINE):
             missing.append(label)
     return ValidationResult(is_valid=len(missing) == 0, missing=missing)
