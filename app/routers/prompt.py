@@ -64,11 +64,33 @@ Important:
 - <hard iFlow-specific constraint>
 (max 5 bullets)
 
+Exception Subprocess (CONDITIONAL):
+- ONLY include this section if the source documents explicitly describe error handling,
+  exception flows, failure notifications, retry logic, dead-letter handling, or fault responses.
+- If no such content exists in the documents, omit this section entirely — do NOT invent it.
+- If it is present, append it after the "Important:" section using this structure:
+
+Exception Subprocess:
+
+<Topology paragraph for the subprocess — plain English, every connection named with its adapter>
+
+Component Configuration:
+
+1. <Component Name> — <Type/Adapter>
+<config fields only>
+
+...
+
+Important (Exception Subprocess):
+- <hard constraint specific to the exception handling>
+(max 3 bullets)
+
 Rules:
 - Opening line with iFlow name and package is REQUIRED.
 - Topology paragraph is REQUIRED.
 - "Component Configuration:" section with at least one numbered entry is REQUIRED.
 - "Important:" section is REQUIRED (max 5 bullets).
+- "Exception Subprocess:" section is OPTIONAL — include ONLY when the documents describe error/exception handling.
 """
 
 _RETRY_SYSTEM = """You are an expert SAP CPI architect fixing an incomplete iFlow prompt.
@@ -81,6 +103,9 @@ The prompt MUST contain ALL of these sections:
 2. A topology paragraph describing every connection and adapter in plain English.
 3. A "Component Configuration:" section with numbered entries (at least one starting with "1.").
 4. An "Important:" section with AT MOST 5 iFlow-specific constraint bullets.
+
+If the original source documents described error handling, exception flows, or fault responses,
+also include an "Exception Subprocess:" section after "Important:" — otherwise omit it.
 
 Keep component config entries concise — only the fields a developer sets in SAP CPI.
 Do NOT include full JSON bodies, general SAP advice, or deployment guidance.
