@@ -164,7 +164,6 @@ export default function App() {
           </button>
         </div>
         <div className={styles.logo}>
-          <span className={styles.logoIcon}>⚡</span>
           <span className={styles.logoText}>Orbit Prompt Generator</span>
         </div>
         <p className={styles.subtitle}>
