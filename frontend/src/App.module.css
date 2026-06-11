@@ -394,6 +394,12 @@
   margin-bottom: 1.5rem;
 }
 
+.topBarRight {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+}
+
 .sierraLogo {
   height: 28px;
   width: auto;

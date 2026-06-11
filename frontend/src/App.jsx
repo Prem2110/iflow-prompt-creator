@@ -154,23 +154,25 @@ export default function App() {
       <header className={styles.header}>
         <div className={styles.topBar}>
           <img src={sierraLogo} alt="Sierra Digital" className={styles.sierraLogo} />
-          <button
-            className={styles.helpBtn}
-            onClick={() => setShowHelp(true)}
-            title="How to use this app"
-            aria-label="Open help"
-          >
-            Help
-          </button>
+          <div className={styles.topBarRight}>
+            <span className={styles.badge}>
+              <span className={styles.badgeDot} />
+              Powered by SAP AI Core · Claude
+            </span>
+            <button
+              className={styles.helpBtn}
+              onClick={() => setShowHelp(true)}
+              title="How to use this app"
+              aria-label="Open help"
+            >
+              Help
+            </button>
+          </div>
         </div>
         <div className={styles.logo}>
           <span className={styles.logoIcon}>⚡</span>
           <span className={styles.logoText}>Orbit Prompt Generator</span>
         </div>
-        <span className={styles.badge}>
-          <span className={styles.badgeDot} />
-          Powered by SAP AI Core · Claude
-        </span>
         <p className={styles.subtitle}>
           Upload documents or screenshots → get a ready-to-use SAP CPI iFlow prompt or manual build guide
         </p>
