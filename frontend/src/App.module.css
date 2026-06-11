@@ -77,34 +77,26 @@
   -webkit-text-fill-color: transparent;
 }
 
-.headerRight {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.65rem;
-  justify-content: center;
-}
 
 .helpBtn {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 50%;
-  background: rgba(99, 62, 220, 0.08);
+  gap: 0.3rem;
+  padding: 0.32rem 0.9rem;
+  border-radius: 6px;
+  background: rgba(99, 62, 220, 0.07);
   border: 1px solid rgba(99, 62, 220, 0.22);
   color: #6366f1;
-  font-size: 0.85rem;
-  font-weight: 800;
+  font-size: 0.82rem;
+  font-weight: 600;
   cursor: pointer;
-  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+  transition: background 0.15s, border-color 0.15s;
   flex-shrink: 0;
 }
 
 .helpBtn:hover {
-  background: rgba(99, 62, 220, 0.15);
+  background: rgba(99, 62, 220, 0.13);
   border-color: rgba(99, 62, 220, 0.4);
-  transform: scale(1.08);
 }
 
 .badge {
@@ -393,36 +385,23 @@
   animation: spin 0.7s linear infinite;
 }
 
-/* Footer */
-.footer {
+/* Top bar — Sierra logo left, Help right */
+.topBar {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 0.75rem;
-  margin-top: 2.5rem;
-  padding: 0.9rem 1.5rem;
-  background: linear-gradient(135deg, #1e1b4b, #0f172a);
-  border-radius: 12px;
-  position: relative;
-  z-index: 1;
+  justify-content: space-between;
+  width: 100%;
+  margin-bottom: 1.5rem;
 }
 
-.footerText {
-  font-size: 0.78rem;
-  font-weight: 500;
-  color: rgba(255, 255, 255, 0.45);
-  letter-spacing: 0.04em;
-  white-space: nowrap;
-}
-
-.footerLogo {
-  height: 22px;
+.sierraLogo {
+  height: 28px;
   width: auto;
-  opacity: 0.85;
-  transition: opacity 0.15s;
+  filter: brightness(0) opacity(0.72);
+  transition: filter 0.15s;
 }
 
-.footer:hover .footerLogo { opacity: 1; }
+.sierraLogo:hover { filter: brightness(0) opacity(1); }
 
 /* Disclaimer */
 .disclaimer {
