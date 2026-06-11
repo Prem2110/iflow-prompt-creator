@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { exportTxt, exportDocx, exportPdf } from "../utils/exportUtils";
 import styles from "./ExportMenu.module.css";
 
-export default function ExportMenu({ content, filename }) {
+export default function ExportMenu({ content, filename, loading = false }) {
   const [open, setOpen] = useState(false);
   const [exporting, setExporting] = useState(null);
   const ref = useRef(null);
@@ -32,7 +32,7 @@ export default function ExportMenu({ content, filename }) {
       <button
         className={styles.trigger}
         onClick={() => setOpen((o) => !o)}
-        disabled={!content || !!exporting}
+        disabled={!content || loading || !!exporting}
         title="Export the generated content as a file"
       >
         {exporting ? "Exporting…" : "Export ▾"}

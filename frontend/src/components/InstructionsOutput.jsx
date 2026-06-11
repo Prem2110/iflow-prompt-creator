@@ -111,7 +111,7 @@ export default function InstructionsOutput({ instructions, loading = false, labe
           >
             {copied ? "✓ Copied!" : "Copy"}
           </button>
-          <ExportMenu content={instructions} filename={exportFilename} />
+          <ExportMenu content={instructions} filename={exportFilename} loading={loading} />
         </div>
       </div>
       <div className={`${styles.body} ${loading ? styles.streaming : ""}`}>

@@ -25,7 +25,7 @@ export default function PromptOutput({ prompt, loading = false }) {
           >
             {copied ? "✓ Copied!" : "Copy"}
           </button>
-          <ExportMenu content={prompt} filename="iflow-prompt" />
+          <ExportMenu content={prompt} filename="iflow-prompt" loading={loading} />
         </div>
       </div>
       <pre className={`${styles.output} ${loading ? styles.streaming : ""}`}>{prompt}</pre>
