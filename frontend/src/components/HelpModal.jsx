@@ -90,6 +90,17 @@ export default function HelpModal({ onClose }) {
               ))}
             </ul>
           </div>
+
+          {/* Powered by */}
+          <div className={styles.poweredBy}>
+            <div className={styles.poweredByLeft}>
+              <span className={styles.poweredByLabel}>Powered by</span>
+              <span className={styles.poweredByName}>SAP AI Core · Claude</span>
+            </div>
+            <p className={styles.poweredByDesc}>
+              All AI generation runs on SAP AI Core using Anthropic's Claude model hosted in a secure, enterprise-grade environment. No data is stored or used for model training.
+            </p>
+          </div>
         </div>
       </div>
     </div>

@@ -1,5 +1,5 @@
 .page {
-  max-width: 900px;
+  max-width: 990px;
   margin: 0 auto;
   padding: 0 1.5rem 4rem;
   position: relative;
@@ -394,11 +394,6 @@
   margin-bottom: 1.5rem;
 }
 
-.topBarRight {
-  display: flex;
-  align-items: center;
-  gap: 0.65rem;
-}
 
 .sierraLogo {
   height: 28px;

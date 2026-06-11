@@ -236,3 +236,40 @@
   flex-shrink: 0;
   margin-top: 0.42rem;
 }
+
+/* Powered by */
+.poweredBy {
+  background: linear-gradient(135deg, #1e1b4b, #0f172a);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.poweredByLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.poweredByLabel {
+  font-size: 0.74rem;
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 500;
+  letter-spacing: 0.05em;
+}
+
+.poweredByName {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #a5b4fc;
+  letter-spacing: 0.02em;
+}
+
+.poweredByDesc {
+  font-size: 0.8rem;
+  color: rgba(255, 255, 255, 0.5);
+  line-height: 1.55;
+  margin: 0;
+}
