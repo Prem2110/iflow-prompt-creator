@@ -393,6 +393,37 @@
   animation: spin 0.7s linear infinite;
 }
 
+/* Footer */
+.footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  margin-top: 2.5rem;
+  padding: 0.9rem 1.5rem;
+  background: linear-gradient(135deg, #1e1b4b, #0f172a);
+  border-radius: 12px;
+  position: relative;
+  z-index: 1;
+}
+
+.footerText {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.45);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+}
+
+.footerLogo {
+  height: 22px;
+  width: auto;
+  opacity: 0.85;
+  transition: opacity 0.15s;
+}
+
+.footer:hover .footerLogo { opacity: 1; }
+
 /* Disclaimer */
 .disclaimer {
   display: flex;

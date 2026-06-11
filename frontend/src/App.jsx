@@ -4,6 +4,7 @@ import PromptOutput from "./components/PromptOutput.jsx";
 import InstructionsOutput from "./components/InstructionsOutput.jsx";
 import ProgressSteps from "./components/ProgressSteps.jsx";
 import HelpModal from "./components/HelpModal.jsx";
+import sierraLogo from "./assets/logosierra.png";
 import styles from "./App.module.css";
 
 export default function App() {
@@ -303,6 +304,10 @@ export default function App() {
           </section>
         )}
       </main>
+      <footer className={styles.footer}>
+        <span className={styles.footerText}>Built by</span>
+        <img src={sierraLogo} alt="Sierra Digital" className={styles.footerLogo} />
+      </footer>
     </div>
   );
 }
