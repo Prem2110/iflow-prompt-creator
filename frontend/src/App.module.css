@@ -77,6 +77,36 @@
   -webkit-text-fill-color: transparent;
 }
 
+.headerRight {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.65rem;
+  justify-content: center;
+}
+
+.helpBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(99, 62, 220, 0.08);
+  border: 1px solid rgba(99, 62, 220, 0.22);
+  color: #6366f1;
+  font-size: 0.85rem;
+  font-weight: 800;
+  cursor: pointer;
+  transition: background 0.15s, border-color 0.15s, transform 0.12s;
+  flex-shrink: 0;
+}
+
+.helpBtn:hover {
+  background: rgba(99, 62, 220, 0.15);
+  border-color: rgba(99, 62, 220, 0.4);
+  transform: scale(1.08);
+}
+
 .badge {
   display: inline-flex;
   align-items: center;

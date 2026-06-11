@@ -3,11 +3,13 @@ import FileUpload from "./components/FileUpload.jsx";
 import PromptOutput from "./components/PromptOutput.jsx";
 import InstructionsOutput from "./components/InstructionsOutput.jsx";
 import ProgressSteps from "./components/ProgressSteps.jsx";
+import HelpModal from "./components/HelpModal.jsx";
 import styles from "./App.module.css";
 
 export default function App() {
   const [files, setFiles] = useState([]);
   const [steps, setSteps] = useState([]);
+  const [showHelp, setShowHelp] = useState(false);
 
   const [prompt, setPrompt] = useState("");
   const [instructions, setInstructions] = useState("");
@@ -141,6 +143,7 @@ export default function App() {
 
   return (
     <div className={styles.page}>
+      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
       <div className={styles.orbs} aria-hidden="true">
         <div className={`${styles.orb} ${styles.orb1}`} />
         <div className={`${styles.orb} ${styles.orb2}`} />
@@ -152,11 +155,19 @@ export default function App() {
           <span className={styles.logoIcon}>⚡</span>
           <span className={styles.logoText}>Orbit Prompt Generator</span>
         </div>
-        <div>
+        <div className={styles.headerRight}>
           <span className={styles.badge}>
             <span className={styles.badgeDot} />
             Powered by SAP AI Core · Claude
           </span>
+          <button
+            className={styles.helpBtn}
+            onClick={() => setShowHelp(true)}
+            title="How to use this app"
+            aria-label="Open help"
+          >
+            ?
+          </button>
         </div>
         <p className={styles.subtitle}>
           Upload documents or screenshots → get a ready-to-use SAP CPI iFlow prompt or manual build guide
