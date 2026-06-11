@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ExportMenu from "./ExportMenu.jsx";
 import styles from "./InstructionsOutput.module.css";
 
 function isTableRow(trimmed) {
@@ -87,7 +88,7 @@ function renderContent(text) {
   return elements;
 }
 
-export default function InstructionsOutput({ instructions, loading = false }) {
+export default function InstructionsOutput({ instructions, loading = false, label = "SAP CPI Manual Build Guide", exportFilename = "iflow-instructions" }) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -100,15 +101,18 @@ export default function InstructionsOutput({ instructions, loading = false }) {
     <div className={styles.container}>
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
-          <span className={styles.label}>SAP CPI Manual Build Guide</span>
+          <span className={styles.label}>{label}</span>
           <span className={styles.charCount}>{instructions.length.toLocaleString()} chars</span>
         </div>
-        <button
-          className={`${styles.copyBtn} ${copied ? styles.copied : ""}`}
-          onClick={handleCopy}
-        >
-          {copied ? "✓ Copied!" : "Copy"}
-        </button>
+        <div className={styles.toolbarRight}>
+          <button
+            className={`${styles.copyBtn} ${copied ? styles.copied : ""}`}
+            onClick={handleCopy}
+          >
+            {copied ? "✓ Copied!" : "Copy"}
+          </button>
+          <ExportMenu content={instructions} filename={exportFilename} />
+        </div>
       </div>
       <div className={`${styles.body} ${loading ? styles.streaming : ""}`}>
         {renderContent(instructions)}

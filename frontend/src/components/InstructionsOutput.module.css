@@ -38,6 +38,13 @@
   font-variant-numeric: tabular-nums;
 }
 
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
 .copyBtn {
   display: inline-flex;
   align-items: center;

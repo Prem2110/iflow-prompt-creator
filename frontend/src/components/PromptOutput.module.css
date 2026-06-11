@@ -21,6 +21,13 @@
   min-width: 0;
 }
 
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
 .label {
   font-size: 0.74rem;
   color: #64748b;

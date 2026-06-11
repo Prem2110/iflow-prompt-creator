@@ -1,0 +1,55 @@
+import { useEffect, useRef, useState } from "react";
+import { exportTxt, exportDocx, exportPdf } from "../utils/exportUtils";
+import styles from "./ExportMenu.module.css";
+
+export default function ExportMenu({ content, filename }) {
+  const [open, setOpen] = useState(false);
+  const [exporting, setExporting] = useState(null);
+  const ref = useRef(null);
+
+  useEffect(() => {
+    function handleOutside(e) {
+      if (ref.current && !ref.current.contains(e.target)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleOutside);
+    return () => document.removeEventListener("mousedown", handleOutside);
+  }, []);
+
+  async function handle(format) {
+    setOpen(false);
+    setExporting(format);
+    try {
+      if (format === "txt") exportTxt(content, filename);
+      else if (format === "docx") await exportDocx(content, filename);
+      else if (format === "pdf") await exportPdf(content, filename);
+    } finally {
+      setExporting(null);
+    }
+  }
+
+  return (
+    <div className={styles.wrapper} ref={ref}>
+      <button
+        className={styles.trigger}
+        onClick={() => setOpen((o) => !o)}
+        disabled={!content || !!exporting}
+        title="Export the generated content as a file"
+      >
+        {exporting ? "Exporting…" : "Export ▾"}
+      </button>
+      {open && (
+        <div className={styles.menu}>
+          <button className={styles.item} onClick={() => handle("txt")}>
+            <span className={styles.fmt}>TXT</span> Plain text
+          </button>
+          <button className={styles.item} onClick={() => handle("docx")}>
+            <span className={`${styles.fmt} ${styles.fmtDocx}`}>DOC</span> Word document
+          </button>
+          <button className={styles.item} onClick={() => handle("pdf")}>
+            <span className={`${styles.fmt} ${styles.fmtPdf}`}>PDF</span> PDF file
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}

@@ -255,6 +255,11 @@ export default function App() {
               </div>
             </div>
 
+            <div className={styles.disclaimer}>
+              <span className={styles.disclaimerIcon}>i</span>
+              Content is generated entirely based on the documents you uploaded. Always review before use.
+            </div>
+
             {activeTab === "prompt" && prompt && (
               <>
                 {warning && <div className={styles.warning} role="alert"><strong>Review needed:</strong> {warning}</div>}
@@ -277,7 +282,7 @@ export default function App() {
             )}
 
             {activeTab === "summary" && summary && (
-              <InstructionsOutput instructions={summary} loading={isSummarising} />
+              <InstructionsOutput instructions={summary} loading={isSummarising} label="iFlow Summary" exportFilename="iflow-summary" />
             )}
             {activeTab === "summary" && !summary && (
               <div className={styles.tabPlaceholder}>

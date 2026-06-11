@@ -1,4 +1,5 @@
 import { useState } from "react";
+import ExportMenu from "./ExportMenu.jsx";
 import styles from "./PromptOutput.module.css";
 
 export default function PromptOutput({ prompt, loading = false }) {
@@ -17,12 +18,15 @@ export default function PromptOutput({ prompt, loading = false }) {
           <span className={styles.label}>SAP CPI iFlow Prompt</span>
           <span className={styles.charCount}>{prompt.length.toLocaleString()} chars</span>
         </div>
-        <button
-          className={`${styles.copyBtn} ${copied ? styles.copied : ""}`}
-          onClick={handleCopy}
-        >
-          {copied ? "✓ Copied!" : "Copy"}
-        </button>
+        <div className={styles.toolbarRight}>
+          <button
+            className={`${styles.copyBtn} ${copied ? styles.copied : ""}`}
+            onClick={handleCopy}
+          >
+            {copied ? "✓ Copied!" : "Copy"}
+          </button>
+          <ExportMenu content={prompt} filename="iflow-prompt" />
+        </div>
       </div>
       <pre className={`${styles.output} ${loading ? styles.streaming : ""}`}>{prompt}</pre>
     </div>
