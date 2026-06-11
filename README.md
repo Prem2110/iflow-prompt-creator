@@ -103,24 +103,114 @@ All three endpoints accept `multipart/form-data` with one or more `files` and re
 | `LLM_USAGE_MONITOR_MODEL_NAME` | Model name reported to the monitor |
 | `LLM_USAGE_MONITOR_API_KEY` | Bearer token for the usage monitor |
 
-## Cloud Foundry Deployment
+## Deploying to SAP BTP (Business Application Studio)
+
+### Prerequisites
+
+- SAP BAS workspace open and running
+- CF CLI logged in: `cf login -a <api-endpoint> -o <org> -s <space>`
+- Git access to this repository
+
+---
+
+### Step 1 — Clone or pull the repository
+
+**First time:**
+```bash
+git clone https://github.com/Prem2110/iflow-prompt-creator.git
+cd iflow-prompt-creator
+```
+
+**Subsequent deployments (pull latest changes):**
+```bash
+cd iflow-prompt-creator
+git stash                  # stash any local changes if needed
+git pull origin master
+```
+
+---
+
+### Step 2 — Build the frontend
 
 ```bash
-# Build frontend first
-cd frontend && npm run build && cd ..
+cd frontend
+npm install
+npm run build
+cd ..
+```
 
-# Set secrets (do this before cf push)
-cf set-env orbit-prompt-creator AICORE_CLIENT_ID     <value>
-cf set-env orbit-prompt-creator AICORE_CLIENT_SECRET <value>
-cf set-env orbit-prompt-creator AICORE_AUTH_URL      <value>
-cf set-env orbit-prompt-creator AICORE_BASE_URL      <value>
-cf set-env orbit-prompt-creator LLM_DEPLOYMENT_ID    <value>
+> The `frontend/.npmrc` file already sets `legacy-peer-deps=true` so plain `npm install` works without any extra flags.
 
-# Deploy
+This produces the `frontend/dist/` folder that FastAPI serves as the SPA in production.
+
+---
+
+### Step 3 — Set environment variables on CF
+
+Run these once (or whenever credentials change). Values persist on the app between deployments.
+
+```bash
+# SAP AI Core credentials
+cf set-env orbit-prompt-creator AICORE_CLIENT_ID     <your-client-id>
+cf set-env orbit-prompt-creator AICORE_CLIENT_SECRET <your-client-secret>
+cf set-env orbit-prompt-creator AICORE_AUTH_URL      <your-auth-url>
+cf set-env orbit-prompt-creator AICORE_BASE_URL      <your-base-url>
+cf set-env orbit-prompt-creator LLM_DEPLOYMENT_ID    <your-deployment-id>
+
+# Optional: LLM usage monitor (skip if not using)
+cf set-env orbit-prompt-creator LLM_USAGE_MONITOR_BASE_URL   <value>
+cf set-env orbit-prompt-creator LLM_USAGE_MONITOR_APP_ID     <value>
+cf set-env orbit-prompt-creator LLM_USAGE_MONITOR_MODEL_NAME <value>
+cf set-env orbit-prompt-creator LLM_USAGE_MONITOR_API_KEY    <value>
+```
+
+---
+
+### Step 4 — Deploy
+
+```bash
 cf push
 ```
 
-The `manifest.yml` targets the `orbit-prompt-creator` app with 512 MB memory, `python_buildpack`, and a health check at `/health`.
+CF uses `manifest.yml` at the repo root. It will:
+- Install Python dependencies from `requirements.txt` via `python_buildpack`
+- Start the app with `uvicorn main:app --host 0.0.0.0 --port $PORT`
+- Serve the React SPA from `frontend/dist/` at the root URL
+- Health-check the app at `/health`
+
+---
+
+### Step 5 — Verify
+
+```bash
+cf apps                          # check app is running
+cf logs orbit-prompt-creator --recent   # check startup logs
+```
+
+Open the app URL shown in `cf apps` output — the UI should load immediately.
+
+---
+
+### Re-deploying after code changes
+
+```bash
+cd iflow-prompt-creator
+git pull origin master
+cd frontend && npm install && npm run build && cd ..
+cf push
+```
+
+---
+
+### Troubleshooting
+
+| Problem | Fix |
+|---|---|
+| `npm install` peer dependency error | Already handled by `frontend/.npmrc` — run plain `npm install` |
+| `frontend/dist/` not found after push | Run `npm run build` inside `frontend/` before `cf push` |
+| App starts but returns 500 | Check `cf logs orbit-prompt-creator --recent` for missing env vars |
+| CF push fails with memory error | Increase memory in `manifest.yml`: `memory: 768M` |
+| Token/auth errors in app | Re-run `cf set-env` for `AICORE_CLIENT_ID` / `AICORE_CLIENT_SECRET` and `cf restage orbit-prompt-creator` |
 
 ## Project structure
 
