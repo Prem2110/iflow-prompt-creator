@@ -1,3 +1,16 @@
+function sanitizeForPdf(text) {
+  return text
+    .replace(/[→⟶➜➡▶]/g, "->")
+    .replace(/[←⟵⬅◀]/g, "<-")
+    .replace(/[•·]/g, "-")
+    .replace(/[""]/g, '"')
+    .replace(/['']/g, "'")
+    .replace(/–/g, "-")
+    .replace(/—/g, "--")
+    .replace(/…/g, "...")
+    .replace(/[^\x00-\xFF]/g, "");
+}
+
 function triggerDownload(blob, filename) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
@@ -118,7 +131,7 @@ export async function exportPdf(content, filename) {
   function addWrapped(text, size, style, indent = 0) {
     doc.setFontSize(size);
     doc.setFont("helvetica", style);
-    const parts = doc.splitTextToSize(text, maxW - indent);
+    const parts = doc.splitTextToSize(sanitizeForPdf(text), maxW - indent);
     const lineH = size * 0.38 + 1.2;
     checkPage(parts.length * lineH + 2);
     doc.text(parts, margin + indent, y);
@@ -152,7 +165,7 @@ export async function exportPdf(content, filename) {
       doc.setFont("helvetica", "bold");
       doc.setTextColor(15, 23, 42);
       headers.forEach((h, j) => {
-        doc.text(h.substring(0, 22), margin + j * colW + 2, y);
+        doc.text(sanitizeForPdf(h).substring(0, 22), margin + j * colW + 2, y);
       });
       y += rowH;
 
@@ -166,7 +179,7 @@ export async function exportPdf(content, filename) {
         }
         doc.setFontSize(8);
         row.forEach((cell, j) => {
-          doc.text(cell.substring(0, 28), margin + j * colW + 2, y);
+          doc.text(sanitizeForPdf(cell).substring(0, 28), margin + j * colW + 2, y);
         });
         y += rowH;
       });
