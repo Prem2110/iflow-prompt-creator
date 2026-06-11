@@ -16,7 +16,7 @@ router = APIRouter(prefix="/api")
 # Maximum file size: 20 MB
 _MAX_FILE_SIZE = 20 * 1024 * 1024
 
-_ALLOWED_EXTENSIONS = {".pdf", ".docx", ".doc", ".pptx", ".xlsx", ".xls", ".csv", ".txt", ".png", ".jpg", ".jpeg", ".webp", ".gif"}
+_ALLOWED_EXTENSIONS = {".pdf", ".docx", ".doc", ".pptx", ".xlsx", ".xls", ".csv", ".txt", ".json", ".yaml", ".yml", ".xml", ".wsdl", ".png", ".jpg", ".jpeg", ".webp", ".gif"}
 
 _SYSTEM = """You are an expert SAP CPI (Cloud Platform Integration) architect.
 

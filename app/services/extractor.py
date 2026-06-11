@@ -34,7 +34,7 @@ async def extract(file, data: bytes) -> dict:
         return {"kind": "text", "name": file.filename, "content": _xlsx(data)}
     if suffix == ".csv":
         return {"kind": "text", "name": file.filename, "content": _csv(data)}
-    if suffix == ".txt":
+    if suffix in (".txt", ".json", ".yaml", ".yml", ".xml", ".wsdl"):
         return {"kind": "text", "name": file.filename, "content": data.decode("utf-8", errors="replace")}
     if suffix in _MIME_MAP:
         return {
