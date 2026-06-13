@@ -189,6 +189,92 @@
 
 .spacer { height: 0.5rem; }
 
+/* ── Code blocks ─────────────────────────────────────────────────────────── */
+.codeBlock {
+  border-radius: 8px;
+  overflow: hidden;
+  margin: 0.9rem 0;
+  border: 1px solid #1e293b;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.18);
+}
+
+.codeHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: #1e293b;
+  padding: 0.45rem 0.9rem;
+  gap: 0.75rem;
+}
+
+.codeLang {
+  font-size: 0.72rem;
+  font-weight: 700;
+  color: #7dd3fc;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-family: "Consolas", "Menlo", monospace;
+}
+
+.codeCopyBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.65rem;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  border-radius: 5px;
+  color: #94a3b8;
+  font-size: 0.74rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, border-color 0.15s;
+  white-space: nowrap;
+}
+
+.codeCopyBtn:hover {
+  background: rgba(255, 255, 255, 0.14);
+  color: #e2e8f0;
+  border-color: rgba(255, 255, 255, 0.28);
+}
+
+.codeCopied {
+  background: rgba(16, 185, 129, 0.18) !important;
+  border-color: rgba(16, 185, 129, 0.4) !important;
+  color: #34d399 !important;
+}
+
+.codeBody {
+  background: #0f172a;
+  margin: 0;
+  padding: 1.1rem 1.25rem;
+  overflow-x: auto;
+  font-family: "Consolas", "Menlo", "Monaco", "Courier New", monospace;
+  font-size: 0.83rem;
+  line-height: 1.65;
+  color: #e2e8f0;
+  white-space: pre;
+  tab-size: 2;
+}
+
+.codeBody::-webkit-scrollbar {
+  height: 5px;
+}
+.codeBody::-webkit-scrollbar-track { background: #0f172a; }
+.codeBody::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+
+/* ── Inline code ─────────────────────────────────────────────────────────── */
+.inlineCode {
+  font-family: "Consolas", "Menlo", "Monaco", monospace;
+  font-size: 0.82em;
+  background: #f1f5f9;
+  border: 1px solid #e2e8f0;
+  color: #4f46e5;
+  padding: 0.1em 0.38em;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
 /* Blinking cursor while streaming */
 .cursor {
   display: inline;

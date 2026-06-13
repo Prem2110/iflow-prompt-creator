@@ -2,6 +2,61 @@ import { useState } from "react";
 import ExportMenu from "./ExportMenu.jsx";
 import styles from "./InstructionsOutput.module.css";
 
+// ── Code block component ──────────────────────────────────────────────────────
+
+const LANG_LABELS = {
+  groovy: "Groovy", gsh: "Groovy", java: "Java",
+  xml: "XML", xslt: "XSLT", xsd: "XSD",
+  json: "JSON", yaml: "YAML", yml: "YAML",
+  js: "JavaScript", javascript: "JavaScript",
+  bash: "Bash", sh: "Shell", curl: "cURL",
+  sql: "SQL", python: "Python", py: "Python",
+  jsonata: "JSONata", xpath: "XPath",
+  csv: "CSV", txt: "Text", text: "Text",
+};
+
+function CodeBlock({ lang, code }) {
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy() {
+    await navigator.clipboard.writeText(code);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  }
+
+  const label = LANG_LABELS[lang?.toLowerCase()] || lang || "Code";
+
+  return (
+    <div className={styles.codeBlock}>
+      <div className={styles.codeHeader}>
+        <span className={styles.codeLang}>{label}</span>
+        <button
+          className={`${styles.codeCopyBtn} ${copied ? styles.codeCopied : ""}`}
+          onClick={handleCopy}
+          title="Copy code"
+        >
+          {copied ? "✓ Copied" : "Copy"}
+        </button>
+      </div>
+      <pre className={styles.codeBody}><code>{code}</code></pre>
+    </div>
+  );
+}
+
+// ── Inline rendering (handles `backtick` spans) ───────────────────────────────
+
+function renderInline(text) {
+  const parts = text.split(/(`[^`]+`)/g);
+  return parts.map((part, i) => {
+    if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
+      return <code key={i} className={styles.inlineCode}>{part.slice(1, -1)}</code>;
+    }
+    return part;
+  });
+}
+
+// ── Table helpers ─────────────────────────────────────────────────────────────
+
 function isTableRow(trimmed) {
   return trimmed.startsWith("|") && trimmed.endsWith("|") && trimmed.length > 2;
 }
@@ -14,6 +69,8 @@ function parseTableRow(line) {
   return line.trim().slice(1, -1).split("|").map((c) => c.trim());
 }
 
+// ── Main renderer ─────────────────────────────────────────────────────────────
+
 function renderContent(text) {
   const lines = text.split("\n");
   const elements = [];
@@ -23,7 +80,23 @@ function renderContent(text) {
     const line = lines[i];
     const trimmed = line.trim();
 
-    // Markdown table: header row followed immediately by separator row
+    // Fenced code block: ```lang
+    if (trimmed.startsWith("```")) {
+      const lang = trimmed.slice(3).trim();
+      const codeLines = [];
+      i++;
+      while (i < lines.length && !lines[i].trim().startsWith("```")) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      i++; // skip closing ```
+      elements.push(
+        <CodeBlock key={`code-${i}`} lang={lang} code={codeLines.join("\n")} />
+      );
+      continue;
+    }
+
+    // Markdown table
     if (isTableRow(trimmed) && i + 1 < lines.length && isSeparatorRow(lines[i + 1].trim())) {
       const tableStart = i;
       const tableLines = [];
@@ -38,11 +111,11 @@ function renderContent(text) {
         <div key={`tbl-${tableStart}`} className={styles.tableWrapper}>
           <table className={styles.table}>
             <thead>
-              <tr>{headers.map((h, j) => <th key={j}>{h}</th>)}</tr>
+              <tr>{headers.map((h, j) => <th key={j}>{renderInline(h)}</th>)}</tr>
             </thead>
             <tbody>
               {rows.map((row, j) => (
-                <tr key={j}>{row.map((cell, k) => <td key={k}>{cell}</td>)}</tr>
+                <tr key={j}>{row.map((cell, k) => <td key={k}>{renderInline(cell)}</td>)}</tr>
               ))}
             </tbody>
           </table>
@@ -52,34 +125,34 @@ function renderContent(text) {
     }
 
     if (line.startsWith("#### ")) {
-      elements.push(<p key={i} className={styles.h4}>{line.slice(5)}</p>);
+      elements.push(<p key={i} className={styles.h4}>{renderInline(line.slice(5))}</p>);
     } else if (line.startsWith("### ")) {
-      elements.push(<h4 key={i} className={styles.h4}>{line.slice(4)}</h4>);
+      elements.push(<h4 key={i} className={styles.h4}>{renderInline(line.slice(4))}</h4>);
     } else if (line.startsWith("## ")) {
-      elements.push(<h3 key={i} className={styles.h3}>{line.slice(3)}</h3>);
+      elements.push(<h3 key={i} className={styles.h3}>{renderInline(line.slice(3))}</h3>);
     } else if (line.startsWith("# ")) {
-      elements.push(<h2 key={i} className={styles.h2}>{line.slice(2)}</h2>);
+      elements.push(<h2 key={i} className={styles.h2}>{renderInline(line.slice(2))}</h2>);
     } else if (/^\d+\.\s/.test(line)) {
       const match = line.match(/^(\d+)\.\s(.*)$/);
       elements.push(
         <div key={i} className={styles.numberedItem}>
           <span className={styles.num}>{match[1]}.</span>
-          <span>{match[2]}</span>
+          <span>{renderInline(match[2])}</span>
         </div>
       );
     } else if (line.startsWith("- ") || line.startsWith("* ")) {
       elements.push(
         <div key={i} className={styles.bulletItem}>
           <span className={styles.bullet}>•</span>
-          <span>{line.slice(2)}</span>
+          <span>{renderInline(line.slice(2))}</span>
         </div>
       );
-    } else if (line.startsWith("**") && line.endsWith("**") && line.length > 4) {
-      elements.push(<p key={i} className={styles.bold}>{line.slice(2, -2)}</p>);
+    } else if (/^\*\*(.+)\*\*$/.test(trimmed)) {
+      elements.push(<p key={i} className={styles.bold}>{renderInline(trimmed.slice(2, -2))}</p>);
     } else if (trimmed === "") {
       elements.push(<div key={i} className={styles.spacer} />);
     } else {
-      elements.push(<p key={i} className={styles.para}>{line}</p>);
+      elements.push(<p key={i} className={styles.para}>{renderInline(line)}</p>);
     }
 
     i++;
@@ -88,7 +161,14 @@ function renderContent(text) {
   return elements;
 }
 
-export default function InstructionsOutput({ instructions, loading = false, label = "SAP CPI Manual Build Guide", exportFilename = "iflow-instructions" }) {
+// ── Component ─────────────────────────────────────────────────────────────────
+
+export default function InstructionsOutput({
+  instructions,
+  loading = false,
+  label = "SAP CPI Manual Build Guide",
+  exportFilename = "iflow-instructions",
+}) {
   const [copied, setCopied] = useState(false);
 
   async function handleCopy() {
@@ -109,7 +189,7 @@ export default function InstructionsOutput({ instructions, loading = false, labe
             className={`${styles.copyBtn} ${copied ? styles.copied : ""}`}
             onClick={handleCopy}
           >
-            {copied ? "✓ Copied!" : "Copy"}
+            {copied ? "✓ Copied!" : "Copy all"}
           </button>
           <ExportMenu content={instructions} filename={exportFilename} loading={loading} />
         </div>
