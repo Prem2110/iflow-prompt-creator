@@ -57,9 +57,100 @@ def _pdf(data: bytes) -> str:
 
 
 def _docx(data: bytes) -> str:
-    from docx import Document
-    doc = Document(io.BytesIO(data))
-    return "\n".join(p.text for p in doc.paragraphs)
+    try:
+        from docx import Document
+        doc = Document(io.BytesIO(data))
+        return "\n".join(p.text for p in doc.paragraphs)
+    except Exception:
+        # Old Word 97-2003 binary .doc — fall back to OLE2 text extraction
+        return _doc_legacy(data)
+
+
+def _doc_legacy(data: bytes) -> str:
+    """Extract text from old .doc files (MHTML/Confluence export, OLE2 binary, RTF)."""
+    import re
+
+    # MHTML / Confluence "Export to Word" — MIME multipart with embedded HTML
+    if data[:4] in (b"Date", b"MIME", b"Cont") or b"multipart/related" in data[:512]:
+        return _mhtml(data)
+
+    # RTF saved as .doc (magic: {\rtf)
+    if data[:5] == b"{\\rtf":
+        rtf = data.decode("latin-1", errors="replace")
+        text = re.sub(r"\\[a-z]+\-?\d* ?", "", rtf)
+        text = re.sub(r"[{}\\]", "", text)
+        return re.sub(r"\s{3,}", "\n", text).strip()
+
+    # OLE2 compound document (magic: D0 CF 11 E0)
+    if data[:4] == b"\xd0\xcf\x11\xe0":
+        try:
+            import olefile
+            ole = olefile.OleFileIO(io.BytesIO(data))
+            all_text = []
+            for stream_name in ("WordDocument", "1Table", "0Table"):
+                if not ole.exists(stream_name):
+                    continue
+                raw = ole.openstream(stream_name).read()
+                for m in re.finditer(rb"(?:[\x20-\x7e][\x00]){5,}", raw):
+                    chunk = m.group(0).decode("utf-16-le", errors="ignore").strip()
+                    if len(chunk) > 4:
+                        all_text.append(chunk)
+            ole.close()
+            if all_text:
+                return "\n".join(all_text)
+        except Exception as exc:
+            raise ValueError(f"Failed to extract text from .doc file: {exc}") from exc
+
+    raise ValueError(
+        "Cannot read this .doc file. Please convert it to .docx (File → Save As → Word Document) and re-upload."
+    )
+
+
+def _mhtml(data: bytes) -> str:
+    """Extract text from an MHTML file (multipart MIME with embedded HTML)."""
+    import email
+    import quopri
+    from lxml import html as lhtml
+
+    msg = email.message_from_bytes(data)
+    html_content = None
+
+    for part in msg.walk():
+        ct = part.get_content_type()
+        if ct == "text/html":
+            payload = part.get_payload(decode=False)
+            cte = part.get("Content-Transfer-Encoding", "").lower()
+            if isinstance(payload, str):
+                if cte == "quoted-printable":
+                    payload = quopri.decodestring(payload.encode("latin-1")).decode("utf-8", errors="replace")
+                html_content = payload
+                break
+
+    if not html_content:
+        raise ValueError("No HTML part found in MHTML file.")
+
+    tree = lhtml.fromstring(html_content)
+    # Remove script/style noise
+    for tag in tree.xpath("//script | //style"):
+        tag.getparent().remove(tag)
+
+    block_tags = {"p", "li", "td", "th", "h1", "h2", "h3", "h4", "h5", "h6", "tr", "div"}
+    lines = []
+    for el in tree.iter():
+        if not isinstance(el.tag, str):
+            continue  # skip comments, PIs
+        if el.tag in block_tags:
+            block = el.text_content().strip()
+            if block:
+                lines.append(block)
+
+    seen = set()
+    unique = []
+    for line in lines:
+        if line not in seen:
+            seen.add(line)
+            unique.append(line)
+    return "\n".join(unique)
 
 
 def _pptx(data: bytes) -> str:
