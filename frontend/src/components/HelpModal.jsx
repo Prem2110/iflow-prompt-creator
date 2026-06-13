@@ -33,6 +33,14 @@ const TIPS = [
   "All three outputs are independent — you can generate all three from the same upload.",
 ];
 
+const LIMITS = [
+  { icon: "📄", label: "Max file size", value: "20 MB per file" },
+  { icon: "🖼️", label: "Diagram PDFs", value: "Rendered as images automatically when text is sparse (< 1,200 chars/page). Claude reads the full visual — swimlanes, arrows, decision points." },
+  { icon: "📑", label: "PDF image pages cap", value: "First 10 pages rendered; remaining pages are skipped to control token usage." },
+  { icon: "🔁", label: "Instructions auto-continuation", value: "Large iFlows that hit the token limit are automatically continued — up to 3 extra calls to complete the full guide." },
+  { icon: "⏱️", label: "LLM timeout", value: "120 seconds per request (configurable on the server)." },
+];
+
 export default function HelpModal({ onClose }) {
   useEffect(() => {
     function handleKey(e) {
@@ -89,6 +97,22 @@ export default function HelpModal({ onClose }) {
                 </li>
               ))}
             </ul>
+          </div>
+
+          {/* Limits */}
+          <div className={styles.limitsBox}>
+            <h3 className={styles.limitsTitle}>Limits &amp; Behaviour</h3>
+            <div className={styles.limitsList}>
+              {LIMITS.map((l) => (
+                <div key={l.label} className={styles.limitItem}>
+                  <span className={styles.limitIcon}>{l.icon}</span>
+                  <div className={styles.limitText}>
+                    <span className={styles.limitLabel}>{l.label}</span>
+                    <span className={styles.limitValue}>{l.value}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Powered by */}

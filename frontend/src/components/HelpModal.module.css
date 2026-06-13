@@ -237,6 +237,65 @@
   margin-top: 0.42rem;
 }
 
+/* Limits */
+.limitsBox {
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+}
+
+.limitsTitle {
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  margin: 0;
+  padding: 0.75rem 1.25rem 0.6rem;
+  background: #f8fafc;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.limitsList {
+  display: flex;
+  flex-direction: column;
+}
+
+.limitItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  padding: 0.7rem 1.25rem;
+  border-bottom: 1px solid #f1f5f9;
+}
+
+.limitItem:last-child { border-bottom: none; }
+
+.limitIcon {
+  font-size: 1rem;
+  flex-shrink: 0;
+  margin-top: 0.05rem;
+}
+
+.limitText {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+  min-width: 0;
+}
+
+.limitLabel {
+  font-size: 0.82rem;
+  font-weight: 650;
+  color: #1e293b;
+}
+
+.limitValue {
+  font-size: 0.82rem;
+  color: #64748b;
+  line-height: 1.5;
+}
+
 /* Powered by */
 .poweredBy {
   background: linear-gradient(135deg, #1e1b4b, #0f172a);
