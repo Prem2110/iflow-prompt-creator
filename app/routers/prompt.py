@@ -200,11 +200,12 @@ async def _stream(files: List[UploadFile]) -> AsyncGenerator[str, None]:
     # Step 1 — extract files
     yield _event("step", key="extract", message=f"Extracting content from {len(files)} file(s)…")
     try:
-        extracted = [await extract(f, data) for f, data in file_data_list]
-        kinds = [e["kind"] for e in extracted]
-        logger.info("Extracted %d text and %d image file(s)", kinds.count("text"), kinds.count("image"))
-        yield _event("step_done", key="extract",
-                     message=f"Extracted {kinds.count('text')} text and {kinds.count('image')} image file(s)")
+        extracted = [item for f, data in file_data_list for item in await extract(f, data)]
+        n_text = sum(1 for e in extracted if e["kind"] == "text")
+        n_img = sum(1 for e in extracted if e["kind"] == "image")
+        logger.info("Extracted %d text and %d image item(s)", n_text, n_img)
+        msg = f"Extracted {n_text} text" + (f" and {n_img} image page(s)" if n_img else "") + " from uploaded file(s)"
+        yield _event("step_done", key="extract", message=msg)
     except Exception as exc:
         logger.error("File extraction failed: %s", exc, exc_info=True)
         yield _event("error", message=f"File extraction failed: {exc}")
@@ -402,12 +403,12 @@ async def _stream_instructions(files: List[UploadFile]) -> AsyncGenerator[str, N
 
     yield _event("step", key="extract", message=f"Extracting content from {len(files)} file(s)…")
     try:
-        extracted = [await extract(f, data) for f, data in file_data_list]
-        kinds = [e["kind"] for e in extracted]
-        logger.info("Instructions — extracted %d text and %d image file(s)",
-                    kinds.count("text"), kinds.count("image"))
-        yield _event("step_done", key="extract",
-                     message=f"Extracted {kinds.count('text')} text and {kinds.count('image')} image file(s)")
+        extracted = [item for f, data in file_data_list for item in await extract(f, data)]
+        n_text = sum(1 for e in extracted if e["kind"] == "text")
+        n_img = sum(1 for e in extracted if e["kind"] == "image")
+        logger.info("Instructions — extracted %d text and %d image item(s)", n_text, n_img)
+        msg = f"Extracted {n_text} text" + (f" and {n_img} image page(s)" if n_img else "") + " from uploaded file(s)"
+        yield _event("step_done", key="extract", message=msg)
     except Exception as exc:
         logger.error("Instructions extraction failed: %s", exc, exc_info=True)
         yield _event("error", message=f"File extraction failed: {exc}")
@@ -524,12 +525,12 @@ async def _stream_summary(files: List[UploadFile]) -> AsyncGenerator[str, None]:
 
     yield _event("step", key="extract", message=f"Extracting content from {len(files)} file(s)…")
     try:
-        extracted = [await extract(f, data) for f, data in file_data_list]
-        kinds = [e["kind"] for e in extracted]
-        logger.info("Summary — extracted %d text and %d image file(s)",
-                    kinds.count("text"), kinds.count("image"))
-        yield _event("step_done", key="extract",
-                     message=f"Extracted {kinds.count('text')} text and {kinds.count('image')} image file(s)")
+        extracted = [item for f, data in file_data_list for item in await extract(f, data)]
+        n_text = sum(1 for e in extracted if e["kind"] == "text")
+        n_img = sum(1 for e in extracted if e["kind"] == "image")
+        logger.info("Summary — extracted %d text and %d image item(s)", n_text, n_img)
+        msg = f"Extracted {n_text} text" + (f" and {n_img} image page(s)" if n_img else "") + " from uploaded file(s)"
+        yield _event("step_done", key="extract", message=msg)
     except Exception as exc:
         logger.error("Summary extraction failed: %s", exc, exc_info=True)
         yield _event("error", message=f"File extraction failed: {exc}")

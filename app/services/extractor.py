@@ -15,45 +15,102 @@ _MIME_MAP = {
 }
 
 
-async def extract(file, data: bytes) -> dict:
+async def extract(file, data: bytes) -> list[dict]:
     """
-    Returns one of:
-      {"kind": "text", "name": str, "content": str}
+    Returns a list of extracted items. Most file types yield one item;
+    diagram-heavy PDFs yield one image item per page.
+
+    Each item is one of:
+      {"kind": "text",  "name": str, "content": str}
       {"kind": "image", "name": str, "mime": str, "b64": str}
     """
     suffix = Path(file.filename or "").suffix.lower()
     logger.info("Extracting %s (%d bytes)", file.filename, len(data))
 
     if suffix == ".pdf":
-        return {"kind": "text", "name": file.filename, "content": _pdf(data)}
+        return _pdf(file.filename, data)
     if suffix in (".docx", ".doc"):
-        return {"kind": "text", "name": file.filename, "content": _docx(data)}
+        return [{"kind": "text", "name": file.filename, "content": _docx(data)}]
     if suffix == ".pptx":
-        return {"kind": "text", "name": file.filename, "content": _pptx(data)}
+        return [{"kind": "text", "name": file.filename, "content": _pptx(data)}]
     if suffix in (".xlsx", ".xls"):
-        return {"kind": "text", "name": file.filename, "content": _xlsx(data)}
+        return [{"kind": "text", "name": file.filename, "content": _xlsx(data)}]
     if suffix == ".csv":
-        return {"kind": "text", "name": file.filename, "content": _csv(data)}
+        return [{"kind": "text", "name": file.filename, "content": _csv(data)}]
     if suffix in (".txt", ".json", ".yaml", ".yml", ".xml", ".wsdl"):
-        return {"kind": "text", "name": file.filename, "content": data.decode("utf-8", errors="replace")}
+        return [{"kind": "text", "name": file.filename, "content": data.decode("utf-8", errors="replace")}]
     if suffix in _MIME_MAP:
-        return {
+        return [{
             "kind": "image",
             "name": file.filename,
             "mime": _MIME_MAP[suffix],
             "b64": base64.b64encode(data).decode(),
-        }
+        }]
 
     # Fallback: try utf-8 text
     logger.warning("Unknown extension '%s' for '%s', falling back to plain text", suffix, file.filename)
-    return {"kind": "text", "name": file.filename, "content": data.decode("utf-8", errors="replace")}
+    return [{"kind": "text", "name": file.filename, "content": data.decode("utf-8", errors="replace")}]
 
 
-def _pdf(data: bytes) -> str:
+# PDFs with fewer than this many chars per page on average are treated as
+# diagram-heavy and rendered as images instead of extracted as text.
+_PDF_DIAGRAM_THRESHOLD = 1200
+# Never render more than this many pages as images (token cost control).
+_PDF_MAX_IMAGE_PAGES = 10
+# Render resolution in DPI.
+_PDF_RENDER_DPI = 150
+
+
+def _pdf(name: str, data: bytes) -> list[dict]:
     from pypdf import PdfReader
+
     reader = PdfReader(io.BytesIO(data))
-    pages = [page.extract_text() or "" for page in reader.pages]
-    return "\n".join(pages)
+    pages_text = [page.extract_text() or "" for page in reader.pages]
+    total_pages = len(pages_text)
+    avg_chars = sum(len(t) for t in pages_text) / max(total_pages, 1)
+
+    if avg_chars < _PDF_DIAGRAM_THRESHOLD:
+        logger.info(
+            "%s: avg %.0f chars/page < %d — rendering as images",
+            name, avg_chars, _PDF_DIAGRAM_THRESHOLD,
+        )
+        return _pdf_as_images(name, data, total_pages)
+
+    logger.info("%s: avg %.0f chars/page — using text extraction", name, avg_chars)
+    return [{"kind": "text", "name": name, "content": "\n".join(pages_text)}]
+
+
+def _pdf_as_images(name: str, data: bytes, total_pages: int) -> list[dict]:
+    import fitz  # pymupdf
+
+    doc = fitz.open(stream=data, filetype="pdf")
+    items: list[dict] = []
+    pages_to_render = min(total_pages, _PDF_MAX_IMAGE_PAGES)
+
+    for i in range(pages_to_render):
+        pix = doc[i].get_pixmap(dpi=_PDF_RENDER_DPI)
+        img_bytes = pix.tobytes("png")
+        label = f"{name} — page {i + 1}" if total_pages > 1 else name
+        items.append({
+            "kind": "image",
+            "name": label,
+            "mime": "image/png",
+            "b64": base64.b64encode(img_bytes).decode(),
+        })
+
+    doc.close()
+
+    if total_pages > _PDF_MAX_IMAGE_PAGES:
+        items.append({
+            "kind": "text",
+            "name": f"{name} (truncated)",
+            "content": (
+                f"[Note: Only the first {_PDF_MAX_IMAGE_PAGES} of {total_pages} pages "
+                f"were sent as images. The remaining pages were omitted.]"
+            ),
+        })
+
+    return items
 
 
 def _docx(data: bytes) -> str:
