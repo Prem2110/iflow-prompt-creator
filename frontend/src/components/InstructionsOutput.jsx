@@ -41,7 +41,8 @@ function CodeBlock({ lang, code, toast }) {
 
 function highlight(text, query) {
   if (!query) return text;
-  const parts = text.split(new RegExp(`(${query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi"));
+  const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const parts = text.split(new RegExp(`(${escaped})`, "gi"));
   return parts.map((p, i) =>
     p.toLowerCase() === query.toLowerCase()
       ? <mark key={i} className={styles.searchMark}>{p}</mark>
@@ -64,41 +65,72 @@ function renderInline(text, query) {
 function isTableRow(t) { return t.startsWith("|") && t.endsWith("|") && t.length > 2; }
 function isSeparatorRow(t) { return /^\|[\s\-:|]+\|$/.test(t); }
 function parseTableRow(line) { return line.trim().slice(1, -1).split("|").map((c) => c.trim()); }
+function isHorizontalRule(t) { return /^(-{3,}|\*{3,}|_{3,})$/.test(t); }
 
-// ── Section (collapsible ##) ──────────────────────────────────────────────────
+// ── Section (collapsible ##) with copy button ─────────────────────────────────
 
-function Section({ title, children, query }) {
-  const [open, setOpen] = useState(true);
+function Section({ title, rawText, children, query, defaultOpen, toast }) {
+  const [open, setOpen] = useState(defaultOpen !== false);
+  const [copied, setCopied] = useState(false);
+
+  async function handleCopy(e) {
+    e.stopPropagation();
+    await navigator.clipboard.writeText(`## ${title}\n${rawText}`);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+    toast?.("Section copied!", "success");
+  }
+
   const titleHit = query && title.toLowerCase().includes(query.toLowerCase());
+
   return (
     <div className={`${styles.section} ${titleHit ? styles.sectionHit : ""}`}>
-      <button className={styles.sectionToggle} onClick={() => setOpen((v) => !v)}>
-        <span className={styles.sectionArrow}>{open ? "▾" : "▸"}</span>
-        <span className={styles.sectionTitle}>{highlight(title, query)}</span>
-      </button>
+      <div className={styles.sectionHeader}>
+        <button className={styles.sectionToggle} onClick={() => setOpen((v) => !v)}>
+          <span className={styles.sectionArrow}>{open ? "▾" : "▸"}</span>
+          <span className={styles.sectionTitle}>{highlight(title, query)}</span>
+        </button>
+        <button
+          className={`${styles.sectionCopyBtn} ${copied ? styles.sectionCopied : ""}`}
+          onClick={handleCopy}
+          title="Copy this section"
+        >
+          {copied ? "✓" : "Copy"}
+        </button>
+      </div>
       {open && <div className={styles.sectionBody}>{children}</div>}
     </div>
   );
 }
 
-// ── Main renderer ─────────────────────────────────────────────────────────────
+// ── Split text into sections then render ──────────────────────────────────────
 
-function renderContent(text, query, toast) {
+function splitSections(text) {
   const lines = text.split("\n");
-  const topLevel = []; // array of { heading, elements[] }
-  let current = { heading: null, elements: [] };
+  const sections = [];
+  let current = { heading: null, rawLines: [] };
 
+  for (const line of lines) {
+    if (line.startsWith("## ")) {
+      if (current.heading !== null || current.rawLines.length > 0) sections.push(current);
+      current = { heading: line.slice(3), rawLines: [] };
+    } else {
+      current.rawLines.push(line);
+    }
+  }
+  sections.push(current);
+  return sections;
+}
+
+function renderLines(lines, query, toast) {
+  const elements = [];
   let i = 0;
   while (i < lines.length) {
     const line = lines[i];
     const trimmed = line.trim();
 
-    // New ## section — start collapsible group
-    if (line.startsWith("## ")) {
-      if (current.heading !== null || current.elements.length) topLevel.push(current);
-      current = { heading: line.slice(3), elements: [] };
-      i++; continue;
-    }
+    // Skip horizontal rules — sections already provide visual separation
+    if (isHorizontalRule(trimmed)) { i++; continue; }
 
     // Fenced code block
     if (trimmed.startsWith("```")) {
@@ -110,9 +142,7 @@ function renderContent(text, query, toast) {
         i++;
       }
       i++;
-      current.elements.push(
-        <CodeBlock key={`code-${i}`} lang={lang} code={codeLines.join("\n")} toast={toast} />
-      );
+      elements.push(<CodeBlock key={`code-${i}`} lang={lang} code={codeLines.join("\n")} toast={toast} />);
       continue;
     }
 
@@ -124,7 +154,7 @@ function renderContent(text, query, toast) {
       const [headerLine, , ...dataLines] = tableLines;
       const headers = parseTableRow(headerLine);
       const rows = dataLines.filter((l) => !isSeparatorRow(l)).map(parseTableRow);
-      current.elements.push(
+      elements.push(
         <div key={`tbl-${ts}`} className={styles.tableWrapper}>
           <table className={styles.table}>
             <thead><tr>{headers.map((h, j) => <th key={j}>{renderInline(h, query)}</th>)}</tr></thead>
@@ -138,42 +168,36 @@ function renderContent(text, query, toast) {
     }
 
     if (line.startsWith("#### ")) {
-      current.elements.push(<p key={i} className={styles.h4}>{renderInline(line.slice(5), query)}</p>);
+      elements.push(<p key={i} className={styles.h4}>{renderInline(line.slice(5), query)}</p>);
     } else if (line.startsWith("### ")) {
-      current.elements.push(<h4 key={i} className={styles.h4}>{renderInline(line.slice(4), query)}</h4>);
+      elements.push(<h4 key={i} className={styles.h4}>{renderInline(line.slice(4), query)}</h4>);
     } else if (line.startsWith("# ")) {
-      current.elements.push(<h2 key={i} className={styles.h2}>{renderInline(line.slice(2), query)}</h2>);
+      elements.push(<h2 key={i} className={styles.h2}>{renderInline(line.slice(2), query)}</h2>);
     } else if (/^\d+\.\s/.test(line)) {
       const match = line.match(/^(\d+)\.\s(.*)$/);
-      current.elements.push(
+      elements.push(
         <div key={i} className={styles.numberedItem}>
           <span className={styles.num}>{match[1]}.</span>
           <span>{renderInline(match[2], query)}</span>
         </div>
       );
     } else if (line.startsWith("- ") || line.startsWith("* ")) {
-      current.elements.push(
+      elements.push(
         <div key={i} className={styles.bulletItem}>
           <span className={styles.bullet}>•</span>
           <span>{renderInline(line.slice(2), query)}</span>
         </div>
       );
     } else if (/^\*\*(.+)\*\*$/.test(trimmed)) {
-      current.elements.push(<p key={i} className={styles.bold}>{renderInline(trimmed.slice(2, -2), query)}</p>);
+      elements.push(<p key={i} className={styles.bold}>{renderInline(trimmed.slice(2, -2), query)}</p>);
     } else if (trimmed === "") {
-      current.elements.push(<div key={i} className={styles.spacer} />);
+      elements.push(<div key={i} className={styles.spacer} />);
     } else {
-      current.elements.push(<p key={i} className={styles.para}>{renderInline(line, query)}</p>);
+      elements.push(<p key={i} className={styles.para}>{renderInline(line, query)}</p>);
     }
     i++;
   }
-  topLevel.push(current);
-
-  return topLevel.map((block, idx) =>
-    block.heading
-      ? <Section key={idx} title={block.heading} query={query}>{block.elements}</Section>
-      : <div key={idx}>{block.elements}</div>
-  );
+  return elements;
 }
 
 // ── Component ─────────────────────────────────────────────────────────────────
@@ -187,6 +211,7 @@ export default function InstructionsOutput({
 }) {
   const [copied, setCopied] = useState(false);
   const [query, setQuery] = useState("");
+  const [openGen, setOpenGen] = useState({ v: 0, open: true }); // v = generation key
 
   async function handleCopy() {
     await navigator.clipboard.writeText(instructions);
@@ -202,17 +227,31 @@ export default function InstructionsOutput({
 
   const matchCount = useMemo(() => {
     if (!query) return 0;
-    return (instructions.match(new RegExp(query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi")) || []).length;
+    const escaped = query.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    return (instructions.match(new RegExp(escaped, "gi")) || []).length;
   }, [instructions, query]);
+
+  const sections = useMemo(() => splitSections(instructions), [instructions]);
 
   return (
     <div className={styles.container}>
+      {/* Toolbar */}
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
           <span className={styles.label}>{label}</span>
           <span className={styles.charCount}>{instructions.length.toLocaleString()} chars · {words.toLocaleString()} words</span>
         </div>
         <div className={styles.toolbarRight}>
+          <button
+            className={styles.collapseBtn}
+            onClick={() => setOpenGen({ v: openGen.v + 1, open: false })}
+            title="Collapse all sections"
+          >Collapse all</button>
+          <button
+            className={styles.collapseBtn}
+            onClick={() => setOpenGen({ v: openGen.v + 1, open: true })}
+            title="Expand all sections"
+          >Expand all</button>
           <button className={`${styles.copyBtn} ${copied ? styles.copied : ""}`} onClick={handleCopy}>
             {copied ? "✓ Copied!" : "Copy all"}
           </button>
@@ -222,7 +261,9 @@ export default function InstructionsOutput({
 
       {/* Search bar */}
       <div className={styles.searchBar}>
-        <span className={styles.searchIcon}>🔍</span>
+        <svg className={styles.searchIcon} width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+        </svg>
         <input
           className={styles.searchInput}
           type="text"
@@ -240,8 +281,24 @@ export default function InstructionsOutput({
         )}
       </div>
 
+      {/* Body */}
       <div className={`${styles.body} ${loading ? styles.streaming : ""}`}>
-        {renderContent(instructions, query, toast)}
+        {sections.map((sec, idx) =>
+          sec.heading ? (
+            <Section
+              key={`${idx}-${openGen.v}`}
+              title={sec.heading}
+              rawText={sec.rawLines.join("\n")}
+              query={query}
+              defaultOpen={openGen.open}
+              toast={toast}
+            >
+              {renderLines(sec.rawLines, query, toast)}
+            </Section>
+          ) : (
+            <div key={idx}>{renderLines(sec.rawLines, query, toast)}</div>
+          )
+        )}
         {loading && <span className={styles.cursor}>▋</span>}
       </div>
     </div>
