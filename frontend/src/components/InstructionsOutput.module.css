@@ -109,15 +109,16 @@
   min-width: 0;
   transition: border-color 0.15s;
 }
-.searchInput:focus { border-color: #6366f1; box-shadow: 0 0 0 2px rgba(99,62,220,0.1); }
+.searchInput:focus { border-color: #f97316; box-shadow: 0 0 0 2px rgba(249,115,22,0.18), 0 0 8px rgba(250,204,21,0.25); }
 .searchInput::placeholder { color: #94a3b8; }
 
 .searchCount {
   font-size: 0.75rem;
-  color: #6366f1;
-  font-weight: 600;
+  color: #ea580c;
+  font-weight: 700;
   white-space: nowrap;
   flex-shrink: 0;
+  text-shadow: 0 0 6px rgba(250,204,21,0.4);
 }
 
 .searchClear {
@@ -135,10 +136,14 @@
 
 /* ── Search highlight ── */
 .searchMark {
-  background: #fef08a;
-  color: #854d0e;
-  border-radius: 2px;
-  padding: 0 0.1em;
+  background: linear-gradient(135deg, #facc15, #f97316);
+  color: #1a0a00;
+  border-radius: 3px;
+  padding: 0 0.18em;
+  font-weight: 700;
+  box-shadow: 0 0 6px 2px rgba(250, 204, 21, 0.6), 0 0 14px 4px rgba(249, 115, 22, 0.35);
+  text-shadow: 0 0 4px rgba(255, 255, 255, 0.4);
+  position: relative;
 }
 
 /* ── Collapsible sections ── */
