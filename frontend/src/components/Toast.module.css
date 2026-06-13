@@ -1,0 +1,56 @@
+.container {
+  position: fixed;
+  bottom: 1.5rem;
+  right: 1.5rem;
+  z-index: 9999;
+  display: flex;
+  flex-direction: column;
+  gap: 0.6rem;
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.65rem 1rem;
+  border-radius: 10px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.14);
+  pointer-events: all;
+  animation: slideIn 0.2s ease both;
+  min-width: 220px;
+  max-width: 360px;
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(24px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+.success { background: #f0fdf4; border: 1px solid #86efac; color: #15803d; }
+.error   { background: #fef2f2; border: 1px solid #fca5a5; color: #dc2626; }
+.info    { background: #eff6ff; border: 1px solid #93c5fd; color: #1d4ed8; }
+
+.icon {
+  font-size: 0.85rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.message { flex: 1; line-height: 1.4; }
+
+.close {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 0.75rem;
+  opacity: 0.5;
+  padding: 0.1rem 0.25rem;
+  border-radius: 3px;
+  color: inherit;
+  flex-shrink: 0;
+  transition: opacity 0.12s;
+}
+.close:hover { opacity: 1; }

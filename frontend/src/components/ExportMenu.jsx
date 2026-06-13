@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { exportTxt, exportDocx, exportPdf } from "../utils/exportUtils";
 import styles from "./ExportMenu.module.css";
 
-export default function ExportMenu({ content, filename, loading = false }) {
+export default function ExportMenu({ content, filename, loading = false, toast }) {
   const [open, setOpen] = useState(false);
   const [exporting, setExporting] = useState(null);
   const ref = useRef(null);
@@ -22,6 +22,8 @@ export default function ExportMenu({ content, filename, loading = false }) {
       if (format === "txt") exportTxt(content, filename);
       else if (format === "docx") await exportDocx(content, filename);
       else if (format === "pdf") await exportPdf(content, filename);
+      const label = format === "docx" ? "Word document" : format.toUpperCase();
+      toast?.(`Exported as ${label}`, "success");
     } finally {
       setExporting(null);
     }
