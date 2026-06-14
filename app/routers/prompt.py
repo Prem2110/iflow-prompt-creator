@@ -216,7 +216,7 @@ async def _stream(files: List[UploadFile]) -> AsyncGenerator[str, None]:
     # Step 2 — generate (streaming)
     yield _event("step", key="generate", message="Claude is generating the iFlow prompt…")
     try:
-        gen = await _chat_complete(_SYSTEM, user_content, stream=True)
+        gen = await _chat_complete(_SYSTEM, user_content, stream=True, max_tokens=8192, max_continuations=3)
         result = ""
         async for text in gen:
             result += text
@@ -246,7 +246,7 @@ async def _stream(files: List[UploadFile]) -> AsyncGenerator[str, None]:
                  message=f"Retrying with stricter prompt (missing: {', '.join(validation.missing)})…")
     try:
         retry_content = _retry_content(result, validation.missing, user_content)
-        gen = await _chat_complete(_RETRY_SYSTEM, retry_content, stream=True)
+        gen = await _chat_complete(_RETRY_SYSTEM, retry_content, stream=True, max_tokens=8192, max_continuations=3)
         result = ""
         async for text in gen:
             result += text
