@@ -239,7 +239,10 @@ export default function InstructionsOutput({
       <div className={styles.toolbar}>
         <div className={styles.toolbarLeft}>
           <span className={styles.label}>{label}</span>
-          <span className={styles.charCount}>{instructions.length.toLocaleString()} chars · {words.toLocaleString()} words</span>
+          <span className={styles.charCount}>
+            {instructions.length.toLocaleString()} chars · {words.toLocaleString()} words
+            {sections.filter(s => s.heading).length > 0 && ` · ${sections.filter(s => s.heading).length} sections`}
+          </span>
         </div>
         <div className={styles.toolbarRight}>
           <button

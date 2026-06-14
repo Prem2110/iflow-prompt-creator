@@ -527,6 +527,19 @@
 }
 .historyBtn:hover { background: rgba(99, 62, 220, 0.12); }
 
+/* ── Tab content dot ── */
+.tabDot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #10b981;
+  margin-left: 0.4rem;
+  vertical-align: middle;
+  flex-shrink: 0;
+  box-shadow: 0 0 4px rgba(16,185,129,0.6);
+}
+
 /* ── Tab timestamp ── */
 .tabTs {
   font-size: 0.68rem;

@@ -313,11 +313,12 @@ export default function App() {
           <section className={styles.card}>
             <div className={styles.tabsRow}>
               <div className={styles.tabs}>
-                {modeTabs.map(({ key, label, ts }) => (
+                {modeTabs.map(({ key, label, ts, content }) => (
                   <button key={key}
                     className={`${styles.tab} ${activeTab === key ? styles.activeTab : ""}`}
                     onClick={() => setActiveTab(key)}>
                     {label}
+                    {content && <span className={styles.tabDot} />}
                     {ts && <span className={styles.tabTs}>{ts}</span>}
                   </button>
                 ))}
@@ -329,7 +330,11 @@ export default function App() {
                   if (activeTab !== key) return null;
                   return (
                     <div key={key} className={styles.tabActionsInner}>
-                      <button className={styles.btnRetry} onClick={handlers[key]} disabled={loading}>
+                      <button className={styles.btnRetry} disabled={loading} onClick={() => {
+                        const hasContent = { prompt, instructions, summary };
+                        if (hasContent[key] && !window.confirm("This will replace the current output. Continue?")) return;
+                        handlers[key]();
+                      }}>
                         {spinning[key] ? <><span className={styles.spinner} /> Regenerating…</> : "↺ Retry"}
                       </button>
                       {/* Feedback */}
