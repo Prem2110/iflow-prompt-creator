@@ -66,6 +66,7 @@ function isTableRow(t) { return t.startsWith("|") && t.endsWith("|") && t.length
 function isSeparatorRow(t) { return /^\|[\s\-:|]+\|$/.test(t); }
 function parseTableRow(line) { return line.trim().slice(1, -1).split("|").map((c) => c.trim()); }
 function isHorizontalRule(t) { return /^(-{3,}|\*{3,}|_{3,})$/.test(t); }
+function isXmlLine(t) { return /^<\/?[A-Za-z][\w:-]*[\s>]/.test(t) || t.startsWith("<?xml") || t.startsWith("<!--"); }
 
 // ── Section (collapsible ##) with copy button ─────────────────────────────────
 
@@ -131,6 +132,23 @@ function renderLines(lines, query, toast) {
 
     // Skip horizontal rules — sections already provide visual separation
     if (isHorizontalRule(trimmed)) { i++; continue; }
+
+    // Auto-detect bare XML blocks (LLM forgot to fence them)
+    if (isXmlLine(trimmed)) {
+      const start = i;
+      const codeLines = [];
+      while (i < lines.length && (isXmlLine(lines[i].trim()) || lines[i].trim() === "")) {
+        codeLines.push(lines[i]);
+        i++;
+      }
+      // Only treat as a code block if it's at least 2 lines (avoid single inline tags)
+      if (codeLines.length >= 2) {
+        elements.push(<CodeBlock key={`xml-${start}`} lang="xml" code={codeLines.join("\n").trimEnd()} toast={toast} />);
+        continue;
+      }
+      // Single-line XML — fall through to normal rendering
+      i = start;
+    }
 
     // Fenced code block
     if (trimmed.startsWith("```")) {

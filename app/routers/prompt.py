@@ -287,7 +287,7 @@ Produce a thorough step-by-step guide covering three areas:
   2. Any scripts required by the iFlow (Groovy, XSLT, XPath expressions, etc.).
   3. How to test the running iFlow using Postman AND cURL.
 
-Output ONLY the guide text — no preamble, no explanation, no markdown code fences.
+Output ONLY the guide text — no preamble, no explanation. Do NOT wrap the entire output in a code fence.
 
 FORMATTING RULES:
 - Use ## for top-level sections and ### for sub-sections.
@@ -295,9 +295,13 @@ FORMATTING RULES:
 - Reference exact SAP CPI UI element names as they appear on screen
   (e.g. "Integration Flow", "Sender", "Content Modifier", tab labels, field names).
 - Never skip a click. Every navigation path must be complete.
+- CODE FENCE RULE: Every piece of code MUST be wrapped in a fenced code block with the correct
+  language identifier. Use ```groovy for Groovy scripts, ```xml for XML/XSLT/XSD payloads,
+  ```json for JSON bodies, ```jsonata for JSONata expressions, ```bash or ```curl for cURL commands,
+  ```xpath for XPath expressions, ```sql for SQL. Never output raw code as plain text.
 - SCRIPTS RULE: Wherever the iFlow requires a Script step, XSLT mapping, Groovy expression,
-  or XPath/JSONPath value — provide the COMPLETE, RUNNABLE code inline in the relevant step.
-  Do not say "write a script here" — write the actual script.
+  or XPath/JSONPath value — provide the COMPLETE, RUNNABLE code inline in the relevant step
+  inside a properly fenced code block. Do not say "write a script here" — write the actual script.
   Examples: full Groovy .gsh body for Script steps, complete XSLT template for XSLT mappings,
   exact XPath/JSONPath strings for Content Modifier expressions, complete JSONata expressions.
 - POSTMAN RULE: Include method, full URL, auth, all headers, a realistic sample body,
