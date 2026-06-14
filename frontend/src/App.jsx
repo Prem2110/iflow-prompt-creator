@@ -215,7 +215,7 @@ export default function App() {
 
   const modeTabs = [
     { key: "prompt", label: "Prompt", content: prompt, ts: timestamps.prompt },
-    { key: "instructions", label: "Instructions", content: instructions, ts: timestamps.instructions },
+    { key: "instructions", label: "Manual Instructions", content: instructions, ts: timestamps.instructions },
     { key: "summary", label: "Summary", content: summary, ts: timestamps.summary },
   ];
 
@@ -291,7 +291,7 @@ export default function App() {
             <button className={styles.btnSecondary} onClick={handleInstructions}
               disabled={files.length === 0 || loading}
               title="Generate a step-by-step manual build guide with scripts and Postman testing">
-              {isInstructing ? <><span className={styles.spinner} /> Building guide…</> : "Instructions"}
+              {isInstructing ? <><span className={styles.spinner} /> Building guide…</> : "Manual Instructions"}
             </button>
             <button className={styles.btnTertiary} onClick={handleSummary}
               disabled={files.length === 0 || loading}
@@ -367,8 +367,8 @@ export default function App() {
             {activeTab === "instructions" && (instructions
               ? <InstructionsOutput instructions={instructions} loading={isInstructing} toast={toast} />
               : <EmptyTab icon="📋" title="No instructions yet"
-                  hint="Click Instructions to get a full step-by-step build guide with Groovy scripts, XSLT mappings, and Postman testing."
-                  onAction={handleInstructions} actionLabel="Generate Instructions" disabled={files.length === 0 || loading} />
+                  hint="Click Manual Instructions to get a full step-by-step build guide with Groovy scripts, XSLT mappings, and Postman testing."
+                  onAction={handleInstructions} actionLabel="Generate Manual Instructions" disabled={files.length === 0 || loading} />
             )}
 
             {/* Summary tab */}
