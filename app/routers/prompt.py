@@ -44,10 +44,15 @@ STRICT FORMATTING RULES:
   fills in: "Message Body" (the expression or XPath only — not an explanation of what it does),
   "Exchange Properties" (name = simple-expression pairs), "Headers" (name = value pairs).
   Never explain what the payload is for or describe business logic — just the field values.
-- DEDUPLICATION RULE: If the Exception Subprocess uses an adapter or step with identical
-  configuration to a step already described in the main Component Configuration, do NOT repeat
-  all fields. Instead write: "Same configuration as <Main Flow Step Name> above." and list only
-  the fields that differ (e.g. a different endpoint path or body).
+  Never set an Exchange Property to the value it already holds (e.g. PRNumber = ${property.PRNumber}
+  is a no-op; omit it if a previous step already wrote that property).
+- DEDUPLICATION RULE: If the Exception Subprocess uses an adapter whose connection fields
+  (Proxy Type, Authentication, Credential Name, Timeout, Content-Type) are the same as a
+  main-flow adapter, do NOT repeat those shared fields. Instead write ONLY the fields that
+  differ (Address, Method, Body) followed by one line:
+  "(Proxy Type / Authentication / Timeout / Content-Type — same as <Main Flow Step Name> above.)"
+  Apply this even when the Address or Method differs — shared connection fields must never
+  be copy-pasted.
 - IMPORTANT DEDUP RULE: The "Important (Exception Subprocess):" section must contain ONLY
   constraints that are specific to the exception handling path and are NOT already stated in the
   main "Important:" section. Never repeat a bullet that was already made above.
