@@ -716,6 +716,26 @@
   50%       { opacity: 0; }
 }
 
+/* ── Discover Flows button ── */
+.btnDiscover {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.52rem 1.35rem;
+  background: linear-gradient(135deg, #6366f1, #7c3aed);
+  color: #fff;
+  border: none;
+  border-radius: 8px;
+  font-size: 0.88rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s, transform 0.1s;
+  white-space: nowrap;
+  letter-spacing: 0.01em;
+}
+.btnDiscover:hover:not(:disabled) { opacity: 0.85; transform: translateY(-1px); }
+.btnDiscover:disabled { opacity: 0.45; cursor: not-allowed; transform: none; }
+
 /* ── Mobile layout ── */
 @media (max-width: 640px) {
   .page { padding: 0 0.9rem 3rem; }

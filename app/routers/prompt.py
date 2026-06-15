@@ -187,6 +187,45 @@ If a value cannot be determined from the source, use a clearly labelled placehol
 
 SUFFIX = "\n\nGenerate the SAP CPI iFlow building prompt from the content above."
 
+_DISCOVER_SYSTEM = """You are an SAP CPI integration architect analysing a process flow document.
+
+Your task: identify every distinct integration interface (iFlow) in the document.
+
+An integration interface is any AUTOMATIC data exchange that crosses a system boundary
+(e.g. IFS Cloud to SAP S/4HANA, or SAP S/4HANA to IFS Cloud).
+Manual steps, human approvals, and internal-system-only steps are NOT interfaces.
+
+For each interface return a JSON object with these exact fields:
+  "id": short snake_case identifier (e.g. "wo_to_wbs_creation")
+  "name": human-readable name (e.g. "Work Order to WBS Creation")
+  "direction": one of "IFS → SAP" | "SAP → IFS" | "SAP → SAP" | "IFS → IFS" | "Other"
+  "source_system": name of the originating system (e.g. "IFS Cloud")
+  "source_entity": IFS entity or SAP object that triggers this (e.g. "WorkOrderEntity")
+  "target_system": name of the receiving system (e.g. "SAP S/4HANA")
+  "target_api": the API or service used on the target (e.g. "API_ENTERPRISE_PROJECT_SRV v0002")
+  "trigger": one sentence describing the business event that triggers this flow
+  "description": one sentence describing what this integration does end-to-end
+
+Return ONLY a valid JSON array. No preamble, no explanation, no markdown fences.
+"""
+
+_DISCOVER_SUFFIX = "\n\nIdentify all integration interfaces in the document above and return the JSON array."
+
+_FLOW_FOCUS_PREFIX = """\
+IMPORTANT — This document describes MULTIPLE integration interfaces.
+Generate a prompt for THIS specific interface ONLY:
+
+  Name:      {name}
+  Direction: {direction}
+  Source:    {source_system} / {source_entity}
+  Target:    {target_system} / {target_api}
+  Trigger:   {trigger}
+  Details:   {description}
+
+Ignore every other interface in the document.
+
+"""
+
 
 def _event(status: str, **kwargs) -> str:
     return f"data: {json.dumps({'status': status, **kwargs})}\n\n"
@@ -252,7 +291,7 @@ def _retry_content(original_output: str, missing: list[str], source_content) -> 
     return parts
 
 
-async def _stream(files: List[UploadFile]) -> AsyncGenerator[str, None]:
+async def _stream(files: List[UploadFile], flow=None) -> AsyncGenerator[str, None]:
     # --- Validate files before processing ---
     for f in files:
         ext = Path(f.filename or "").suffix.lower()
@@ -285,6 +324,14 @@ async def _stream(files: List[UploadFile]) -> AsyncGenerator[str, None]:
         return
 
     user_content = _build_user_content(extracted)
+
+    if flow:
+        keys = ["name", "direction", "source_system", "source_entity", "target_system", "target_api", "trigger", "description"]
+        focus = _FLOW_FOCUS_PREFIX.format(**{k: flow.get(k, "") for k in keys})
+        if isinstance(user_content, str):
+            user_content = focus + user_content
+        else:
+            user_content = [{"type": "text", "text": focus}] + list(user_content)
 
     # Step 2 — generate (streaming)
     yield _event("step", key="generate", message="Claude is generating the iFlow prompt…")
@@ -644,6 +691,98 @@ async def summarize(files: List[UploadFile] = File(...)):
     logger.info("Summary request — %d file(s): %s", len(files), [f.filename for f in files])
     return StreamingResponse(
         _stream_summary(files),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+# ── Discover flows endpoint ───────────────────────────────────────────────────
+
+async def _stream_discover(files: List[UploadFile]) -> AsyncGenerator[str, None]:
+    for f in files:
+        ext = Path(f.filename or "").suffix.lower()
+        if ext not in _ALLOWED_EXTENSIONS:
+            yield _event("error", message=f"Unsupported file type '{ext}' for '{f.filename}'")
+            return
+
+    file_data_list: list[tuple[UploadFile, bytes]] = []
+    for f in files:
+        data = await f.read()
+        if len(data) > _MAX_FILE_SIZE:
+            yield _event("error", message=f"File '{f.filename}' exceeds {_MAX_FILE_SIZE // (1024*1024)} MB limit")
+            return
+        file_data_list.append((f, data))
+
+    yield _event("step", key="extract", message=f"Extracting content from {len(files)} file(s)…")
+    try:
+        extracted = [item for f, data in file_data_list for item in await extract(f, data)]
+        yield _event("step_done", key="extract", message=f"Extracted content from {len(files)} file(s)")
+    except Exception as exc:
+        yield _event("error", message=f"File extraction failed: {exc}")
+        return
+
+    user_content = _build_user_content(extracted)
+    if isinstance(user_content, str):
+        user_content = user_content.replace(SUFFIX.strip(), _DISCOVER_SUFFIX.strip())
+    else:
+        for part in reversed(user_content):
+            if part.get("type") == "text" and SUFFIX.strip() in part["text"]:
+                part["text"] = part["text"].replace(SUFFIX.strip(), _DISCOVER_SUFFIX.strip())
+                break
+
+    yield _event("step", key="discover", message="Analysing document for integration interfaces…")
+    try:
+        gen = await _chat_complete(_DISCOVER_SYSTEM, user_content, stream=True, max_tokens=2048)
+        result = ""
+        async for text in gen:
+            result += text
+        yield _event("step_done", key="discover", message="Analysis complete")
+    except Exception as exc:
+        yield _event("error", message=f"LLM call failed: {exc}")
+        return
+
+    cleaned = result.strip()
+    if cleaned.startswith("```"):
+        lines = cleaned.split("\n")
+        cleaned = "\n".join(lines[1:])
+        if cleaned.endswith("```"):
+            cleaned = cleaned[:-3].strip()
+
+    try:
+        flows = json.loads(cleaned)
+        if not isinstance(flows, list):
+            raise ValueError("Expected a JSON array")
+    except Exception as exc:
+        yield _event("error", message=f"Failed to parse interface list: {exc}")
+        return
+
+    yield _event("done", flows=flows)
+
+
+@router.post("/discover-flows")
+async def discover_flows(files: List[UploadFile] = File(...)):
+    logger.info("Discover-flows request — %d file(s): %s", len(files), [f.filename for f in files])
+    return StreamingResponse(
+        _stream_discover(files),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+# ── Generate single flow prompt endpoint ─────────────────────────────────────
+
+from fastapi import Form as FastAPIForm
+
+
+@router.post("/generate-flow-prompt")
+async def generate_flow_prompt(
+    files: List[UploadFile] = File(...),
+    flow_json: str = FastAPIForm(...),
+):
+    flow = json.loads(flow_json)
+    logger.info("Flow prompt request — flow: %s, files: %s", flow.get("name"), [f.filename for f in files])
+    return StreamingResponse(
+        _stream(files, flow=flow),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

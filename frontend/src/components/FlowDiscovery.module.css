@@ -1,0 +1,140 @@
+.container {
+  border: 1px solid var(--card-border, #e2e8f0);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-top: 1rem;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.75rem 1.1rem;
+  background: linear-gradient(135deg, rgba(99,102,241,0.06), rgba(139,92,246,0.04));
+  border-bottom: 1px solid var(--card-border, #e2e8f0);
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.headerLeft { display: flex; align-items: center; }
+.headerRight { display: flex; align-items: center; gap: 0.5rem; flex-shrink: 0; flex-wrap: wrap; }
+
+.title { font-size: 0.85rem; font-weight: 600; color: var(--text, #0f172a); }
+.titleCount { font-size: 1.15rem; font-weight: 800; color: #6366f1; margin-right: 0.15rem; }
+
+.selectBtn {
+  padding: 0.28rem 0.7rem;
+  background: var(--bg, #f1f5f9);
+  border: 1px solid var(--card-border, #e2e8f0);
+  border-radius: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-muted, #475569);
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.12s;
+}
+.selectBtn:hover:not(:disabled) { background: var(--card-border, #e2e8f0); }
+.selectBtn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.generateBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.35rem 1rem;
+  background: linear-gradient(135deg, #6366f1, #7c3aed);
+  color: #fff;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.82rem;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: opacity 0.15s, transform 0.1s;
+}
+.generateBtn:hover:not(:disabled) { opacity: 0.88; transform: translateY(-1px); }
+.generateBtn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+
+.list { display: flex; flex-direction: column; background: var(--card-bg, #fff); }
+
+.item {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.85rem;
+  padding: 0.85rem 1.1rem;
+  border-bottom: 1px solid var(--card-border, #f1f5f9);
+  cursor: pointer;
+  transition: background 0.1s;
+}
+.item:last-child { border-bottom: none; }
+.item:hover { background: var(--bg, #f8fafc); }
+.itemSelected { background: rgba(99,102,241,0.04); }
+.itemGenerating { background: rgba(16,185,129,0.04); }
+
+.checkbox {
+  margin-top: 0.25rem;
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  accent-color: #6366f1;
+  cursor: pointer;
+}
+
+.flowInfo { flex: 1; min-width: 0; }
+
+.flowNameRow {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  flex-wrap: wrap;
+  margin-bottom: 0.35rem;
+}
+
+.flowName { font-size: 0.9rem; font-weight: 700; color: var(--text, #0f172a); }
+
+.dirBadge {
+  font-size: 0.68rem;
+  font-weight: 700;
+  padding: 0.12em 0.55em;
+  border-radius: 99px;
+  white-space: nowrap;
+  letter-spacing: 0.04em;
+}
+.dirIfsToSap { background: rgba(99,102,241,0.1); color: #4338ca; border: 1px solid rgba(99,102,241,0.2); }
+.dirSapToIfs { background: rgba(6,182,212,0.1); color: #0e7490; border: 1px solid rgba(6,182,212,0.2); }
+.dirOther    { background: rgba(100,116,139,0.1); color: #475569; border: 1px solid rgba(100,116,139,0.2); }
+
+.generatingBadge {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: #059669;
+  animation: pulse 1.5s ease-in-out infinite;
+}
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+.flowMeta { display: flex; align-items: center; gap: 0.4rem; margin-bottom: 0.3rem; flex-wrap: wrap; }
+
+.metaChip {
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: "Consolas","Menlo",monospace;
+  background: var(--bg, #f1f5f9);
+  border: 1px solid var(--card-border, #e2e8f0);
+  color: #6366f1;
+  padding: 0.1em 0.5em;
+  border-radius: 4px;
+}
+
+.metaArrow { font-size: 0.8rem; color: var(--text-subtle, #94a3b8); }
+
+.flowDesc { font-size: 0.8rem; color: var(--text-muted, #64748b); margin: 0; line-height: 1.45; }
+
+.spinner {
+  display: inline-block;
+  width: 12px; height: 12px;
+  border: 2px solid rgba(255,255,255,0.3);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }

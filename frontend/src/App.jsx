@@ -5,6 +5,8 @@ import InstructionsOutput from "./components/InstructionsOutput.jsx";
 import ProgressSteps from "./components/ProgressSteps.jsx";
 import HelpModal from "./components/HelpModal.jsx";
 import Toast from "./components/Toast.jsx";
+import FlowDiscovery from "./components/FlowDiscovery.jsx";
+import MultiPromptOutput from "./components/MultiPromptOutput.jsx";
 import { useToast } from "./hooks/useToast.js";
 import sierraLogo from "./assets/logosierra.png";
 import styles from "./App.module.css";
@@ -63,6 +65,13 @@ export default function App() {
   const [loadingMode, setLoadingMode] = useState(null);
   const [error, setError] = useState("");
   const abortRef = useRef(null);
+
+  const [discoveredFlows, setDiscoveredFlows] = useState([]);
+  const [selectedFlowIds, setSelectedFlowIds] = useState(new Set());
+  const [multiPrompts, setMultiPrompts] = useState({});
+  const [discoverLoading, setDiscoverLoading] = useState(false);
+  const [generatingFlowId, setGeneratingFlowId] = useState(null);
+  const [multiLoading, setMultiLoading] = useState(false);
 
   const [history, setHistory] = useState(loadHistory);
   const [dark, setDark] = useState(() => localStorage.getItem(DARK_KEY) === "true");
@@ -185,6 +194,105 @@ export default function App() {
     await streamFrom("/api/summarize", "summary", setSummary);
   }
 
+  async function handleDiscover() {
+    if (files.length === 0) return;
+    setDiscoverLoading(true);
+    setDiscoveredFlows([]);
+    setSelectedFlowIds(new Set());
+    setMultiPrompts({});
+    setError("");
+    setSteps([]);
+
+    const form = new FormData();
+    files.forEach((f) => form.append("files", f));
+
+    try {
+      const res = await fetch("/api/discover-flows", { method: "POST", body: form });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || `HTTP ${res.status}`);
+      }
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = "";
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        buffer += decoder.decode(value, { stream: true });
+        const lines = buffer.split("\n");
+        buffer = lines.pop();
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue;
+          const event = JSON.parse(line.slice(6));
+          if (event.status === "step") upsertStep(event.key, "active", event.message);
+          else if (event.status === "step_done") upsertStep(event.key, "done", event.message);
+          else if (event.status === "error") { setError(event.message); return; }
+          else if (event.status === "done") {
+            setDiscoveredFlows(event.flows || []);
+            setSelectedFlowIds(new Set((event.flows || []).map((f) => f.id)));
+          }
+        }
+      }
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setDiscoverLoading(false);
+    }
+  }
+
+  async function handleGenerateSelected() {
+    const selected = discoveredFlows.filter((f) => selectedFlowIds.has(f.id));
+    if (selected.length === 0) return;
+    setMultiLoading(true);
+    setActiveTab("multiflow");
+    setError("");
+
+    for (const flow of selected) {
+      setGeneratingFlowId(flow.id);
+      setMultiPrompts((prev) => ({ ...prev, [flow.id]: "" }));
+
+      const form = new FormData();
+      files.forEach((f) => form.append("files", f));
+      form.append("flow_json", JSON.stringify(flow));
+
+      try {
+        const res = await fetch("/api/generate-flow-prompt", { method: "POST", body: form });
+        if (!res.ok) {
+          const data = await res.json().catch(() => ({}));
+          throw new Error(data.detail || `HTTP ${res.status}`);
+        }
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let flowResult = "";
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop();
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const event = JSON.parse(line.slice(6));
+            if (event.status === "chunk") {
+              flowResult += event.text;
+              setMultiPrompts((prev) => ({ ...prev, [flow.id]: flowResult }));
+            } else if (event.status === "done") {
+              flowResult = event.prompt || flowResult;
+              setMultiPrompts((prev) => ({ ...prev, [flow.id]: flowResult }));
+            } else if (event.status === "error") {
+              setError(event.message);
+            }
+          }
+        }
+      } catch (err) {
+        if (err.name !== "AbortError") setError(err.message);
+      }
+      setGeneratingFlowId(null);
+    }
+    setMultiLoading(false);
+  }
+
   function handleReset() {
     if (abortRef.current) abortRef.current.abort();
     setFiles([]); setSteps([]); setPrompt(""); setInstructions(""); setSummary("");
@@ -192,6 +300,8 @@ export default function App() {
     setActiveTab("prompt");
     setTimestamps({ prompt: null, instructions: null, summary: null });
     setFeedback({ prompt: null, instructions: null, summary: null });
+    setDiscoveredFlows([]); setSelectedFlowIds(new Set()); setMultiPrompts({});
+    setDiscoverLoading(false); setGeneratingFlowId(null); setMultiLoading(false);
   }
 
   function handleFeedback(tab, value) {
@@ -208,7 +318,7 @@ export default function App() {
     toast("Restored from history", "info");
   }
 
-  const hasOutput = prompt || instructions || summary;
+  const hasOutput = prompt || instructions || summary || Object.keys(multiPrompts).length > 0 || multiLoading;
   const isGenerating = loading && loadingMode === "prompt";
   const isInstructing = loading && loadingMode === "instructions";
   const isSummarising = loading && loadingMode === "summary";
@@ -217,6 +327,12 @@ export default function App() {
     { key: "prompt", label: "Prompt", content: prompt, ts: timestamps.prompt },
     { key: "instructions", label: "Manual Instructions", content: instructions, ts: timestamps.instructions },
     { key: "summary", label: "Summary", content: summary, ts: timestamps.summary },
+    ...(Object.keys(multiPrompts).length > 0 || multiLoading ? [{
+      key: "multiflow",
+      label: `Multi-Flow${Object.keys(multiPrompts).length > 0 ? ` (${Object.keys(multiPrompts).length})` : ""}`,
+      content: Object.keys(multiPrompts).length > 0 ? "has" : "",
+      ts: null,
+    }] : []),
   ];
 
   return (
@@ -286,17 +402,22 @@ export default function App() {
             <button className={styles.btnPrimary} onClick={handleGenerate}
               disabled={files.length === 0 || loading}
               title="Generate a ready-to-use SAP CPI iFlow configuration prompt">
-              {isGenerating ? <><span className={styles.spinner} /> Generating…</> : "Generate Prompt"}
+              {isGenerating ? <><span className={styles.spinner} /> Generating&hellip;</> : "Generate Prompt"}
             </button>
             <button className={styles.btnSecondary} onClick={handleInstructions}
               disabled={files.length === 0 || loading}
               title="Generate a step-by-step manual build guide with scripts and Postman testing">
-              {isInstructing ? <><span className={styles.spinner} /> Building guide…</> : "Manual Instructions"}
+              {isInstructing ? <><span className={styles.spinner} /> Building guide&hellip;</> : "Manual Instructions"}
             </button>
             <button className={styles.btnTertiary} onClick={handleSummary}
               disabled={files.length === 0 || loading}
               title="Get a concise overview of the iFlow">
-              {isSummarising ? <><span className={styles.spinnerTeal} /> Summarising…</> : "Summarize"}
+              {isSummarising ? <><span className={styles.spinnerTeal} /> Summarising&hellip;</> : "Summarize"}
+            </button>
+            <button className={styles.btnDiscover} onClick={handleDiscover}
+              disabled={files.length === 0 || loading || discoverLoading}
+              title="Detect all integration interfaces in the uploaded document">
+              {discoverLoading ? <><span className={styles.spinner} /> Discovering&hellip;</> : "Discover Flows"}
             </button>
             {(files.length > 0 || hasOutput) && (
               <button className={styles.btnGhost} onClick={handleReset} disabled={loading && !abortRef.current}>
@@ -307,6 +428,23 @@ export default function App() {
 
           {error && <p className={styles.error} role="alert">{error}</p>}
           {steps.length > 0 && <ProgressSteps steps={steps} />}
+
+          {discoveredFlows.length > 0 && (
+            <FlowDiscovery
+              flows={discoveredFlows}
+              selectedIds={selectedFlowIds}
+              onToggle={(id) => setSelectedFlowIds((prev) => {
+                const next = new Set(prev);
+                next.has(id) ? next.delete(id) : next.add(id);
+                return next;
+              })}
+              onSelectAll={() => setSelectedFlowIds(new Set(discoveredFlows.map((f) => f.id)))}
+              onDeselectAll={() => setSelectedFlowIds(new Set())}
+              onGenerate={handleGenerateSelected}
+              generatingFlowId={generatingFlowId}
+              loading={multiLoading}
+            />
+          )}
         </section>
 
         {hasOutput && (
@@ -328,6 +466,7 @@ export default function App() {
                   const handlers = { prompt: handleGenerate, instructions: handleInstructions, summary: handleSummary };
                   const spinning = { prompt: isGenerating, instructions: isInstructing, summary: isSummarising };
                   if (activeTab !== key) return null;
+                  if (key === "multiflow") return null;
                   return (
                     <div key={key} className={styles.tabActionsInner}>
                       <button className={styles.btnRetry} disabled={loading} onClick={() => {
@@ -335,7 +474,7 @@ export default function App() {
                         if (hasContent[key] && !window.confirm("This will replace the current output. Continue?")) return;
                         handlers[key]();
                       }}>
-                        {spinning[key] ? <><span className={styles.spinner} /> Regenerating…</> : "↺ Retry"}
+                        {spinning[key] ? <><span className={styles.spinner} /> Regenerating&hellip;</> : "↺ Retry"}
                       </button>
                       {/* Feedback */}
                       <div className={styles.feedbackRow}>
@@ -382,6 +521,17 @@ export default function App() {
               : <EmptyTab icon="📄" title="No summary yet"
                   hint="Click Summarize to get a concise overview — iFlow purpose, topology, adapters, and key configuration."
                   onAction={handleSummary} actionLabel="Summarize" disabled={files.length === 0 || loading} />
+            )}
+
+            {/* Multi-flow tab */}
+            {activeTab === "multiflow" && (
+              <MultiPromptOutput
+                flows={discoveredFlows}
+                prompts={multiPrompts}
+                generatingFlowId={generatingFlowId}
+                loading={multiLoading}
+                toast={toast}
+              />
             )}
           </section>
         )}
