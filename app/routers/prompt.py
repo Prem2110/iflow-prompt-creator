@@ -40,6 +40,16 @@ STRICT FORMATTING RULES:
   entry per component/channel. Each entry heading: "<Name> — <Type/Adapter>". Body: ONLY the
   configuration fields a developer sets in SAP CPI (URL, method, headers, XPath, namespace, etc.).
   No prose explanations, no general SAP advice, no full JSON bodies.
+- ODATA RULE: For every OData V2 or OData V4 Receiver Adapter entry you MUST include ALL of
+  these fields (use a clearly-labelled placeholder if the value is not in the source documents):
+    Address: <full service-root URL, e.g. https://<host>/sap/opu/odata/sap/<SERVICE_NAME>>
+    Resource Path: <entity-set path, e.g. /A_EnterpriseProject or /ProjectCollection>
+    Operation: <Create | Read | Update | Delete | Query | Merge | Patch>
+    Query Options: <$filter / $select / $expand — omit only if truly not applicable>
+  Never list just the service name without the entity set and operation type.
+- PLACEHOLDER RULE: When a value (URL, entity name, auth credential, etc.) cannot be determined
+  from the source documents, use a clearly labelled placeholder in angle brackets, e.g.
+  <IFS-host>, <service-root-url>, <entity-set-name>. Never silently omit a required field.
 - End with an "Important:" section of AT MOST 5 bullets covering ONLY hard technical constraints
   specific to this iFlow (e.g. CSRF token handling, specific XPath expressions, auth method).
   Do NOT include general development advice or deployment guidance.
