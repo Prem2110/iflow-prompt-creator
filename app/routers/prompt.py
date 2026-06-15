@@ -49,7 +49,7 @@ STRICT FORMATTING RULES:
   Never list just the service name without the entity set and operation type.
 - PLACEHOLDER RULE: When a value (URL, entity name, auth credential, etc.) cannot be determined
   from the source documents, use a clearly labelled placeholder in angle brackets, e.g.
-  <IFS-host>, <service-root-url>, <entity-set-name>. Never silently omit a required field.
+  <your-host>, <service-root-url>, <entity-set-name>. Never silently omit a required field.
 - End with an "Important:" section of AT MOST 5 bullets covering ONLY hard technical constraints
   specific to this iFlow (e.g. CSRF token handling, specific XPath expressions, auth method).
   Do NOT include general development advice or deployment guidance.
