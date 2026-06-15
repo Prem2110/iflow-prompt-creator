@@ -1,13 +1,7 @@
 import { useState } from "react";
 import PromptOutput from "./PromptOutput.jsx";
 import styles from "./MultiPromptOutput.module.css";
-
-function dirClass(direction) {
-  if (!direction) return "dirOther";
-  if (direction.startsWith("IFS")) return "dirIfsToSap";
-  if (direction.startsWith("SAP")) return "dirSapToIfs";
-  return "dirOther";
-}
+import { badgeStyle } from "./dirBadge.js";
 
 function FlowCard({ flow, prompt, isGenerating, toast }) {
   const [open, setOpen] = useState(true);
@@ -16,7 +10,7 @@ function FlowCard({ flow, prompt, isGenerating, toast }) {
       <div className={styles.cardHeader} onClick={() => setOpen((v) => !v)}>
         <span className={styles.arrow}>{open ? "▾" : "▸"}</span>
         <span className={styles.flowName}>{flow.name}</span>
-        <span className={`${styles.dirBadge} ${styles[dirClass(flow.direction)]}`}>{flow.direction}</span>
+        <span className={styles.dirBadge} style={badgeStyle(flow.direction)}>{flow.direction}</span>
         {isGenerating && <span className={styles.generatingLabel}>Generating&hellip;</span>}
         <span className={styles.apiLabel}>{flow.target_api}</span>
       </div>

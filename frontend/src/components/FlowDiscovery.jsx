@@ -1,11 +1,5 @@
 import styles from "./FlowDiscovery.module.css";
-
-function dirClass(direction) {
-  if (!direction) return "dirOther";
-  if (direction.startsWith("IFS")) return "dirIfsToSap";
-  if (direction.startsWith("SAP")) return "dirSapToIfs";
-  return "dirOther";
-}
+import { badgeStyle } from "./dirBadge.js";
 
 export default function FlowDiscovery({
   flows,
@@ -63,7 +57,7 @@ export default function FlowDiscovery({
               <div className={styles.flowInfo}>
                 <div className={styles.flowNameRow}>
                   <span className={styles.flowName}>{flow.name}</span>
-                  <span className={`${styles.dirBadge} ${styles[dirClass(flow.direction)]}`}>
+                  <span className={styles.dirBadge} style={badgeStyle(flow.direction)}>
                     {flow.direction}
                   </span>
                   {isGenerating && <span className={styles.generatingBadge}>Generating&hellip;</span>}
