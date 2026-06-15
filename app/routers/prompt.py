@@ -50,6 +50,52 @@ STRICT FORMATTING RULES:
 - PLACEHOLDER RULE: When a value (URL, entity name, auth credential, etc.) cannot be determined
   from the source documents, use a clearly labelled placeholder in angle brackets, e.g.
   <your-host>, <service-root-url>, <entity-set-name>. Never silently omit a required field.
+- HTTPS SENDER RULE: For every HTTPS Sender Adapter entry include:
+    Address: <relative path, e.g. /http/receive-po>
+    Authorization: <User Role | Client Certificate>
+    User Role: <ESBMessaging.send or custom role>
+    CSRF Protected: <true | false>
+    Message Exchange Pattern: <Request-Reply | One-Way>
+- HTTPS RECEIVER RULE: For every HTTPS Receiver Adapter entry include:
+    Address: <full URL including path>
+    Proxy Type: <Internet | On-Premise>
+    Method: <GET | POST | PUT | PATCH | DELETE>
+    Authentication: <None | Basic | OAuth2 Client Credentials | Client Certificate | Principal Propagation>
+    Timeout: <value in ms, e.g. 60000>
+    Content-Type: <application/json | application/xml | etc.>
+- SOAP RULE: For every SOAP Sender or Receiver Adapter entry include:
+    Address: <endpoint URL or relative path>
+    WSDL URL: <URL or local path — use <wsdl-url> placeholder if unknown>
+    Service: <service name from WSDL>
+    Port: <port name from WSDL>
+    Operation Name: <operation name>
+    Authentication: <None | Basic | WS-Security | Client Certificate>
+- SFTP RULE: For every SFTP Sender or Receiver Adapter entry include:
+    Host: <sftp-host>
+    Port: <22 or custom>
+    Directory: </path/to/directory>
+    File Name: <static name or pattern, e.g. *.xml>
+    Authentication: <User Name/Password | Public Key>
+    Post Processing (Sender only): <Delete File | Keep File and Mark | Archive>
+    Duplicate Handling (Sender only): <Skip Duplicates | Overwrite>
+- MAIL RULE: For every Mail Receiver Adapter entry include:
+    Host: <smtp-host>
+    Port: <25 | 465 | 587>
+    Encryption: <STARTTLS | SSL | Plain>
+    From: <sender address or <from-address>>
+    To: <recipient address or <to-address>>
+    Subject: <subject line>
+    Authentication: <None | Encrypted User/Password>
+- IDOC RULE: For every IDoc Receiver Adapter entry include:
+    Receiver: <SAP System ID / client>
+    Receiver Port: <RFC destination or port name>
+    IDoc Type: <basic type, e.g. ORDERS05>
+    Message Type: <e.g. ORDERS>
+    Communication Channel: <channel name or <idoc-channel>>
+- JDBC RULE: For every JDBC Receiver Adapter entry include:
+    Data Source: <JDBC data source alias configured in CPI>
+    SQL Query / Stored Procedure: <full SQL statement or procedure name>
+    Operation: <SELECT | INSERT | UPDATE | DELETE | Stored Procedure>
 - End with an "Important:" section of AT MOST 5 bullets covering ONLY hard technical constraints
   specific to this iFlow (e.g. CSRF token handling, specific XPath expressions, auth method).
   Do NOT include general development advice or deployment guidance.
