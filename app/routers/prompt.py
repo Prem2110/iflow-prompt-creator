@@ -40,6 +40,17 @@ STRICT FORMATTING RULES:
   entry per component/channel. Each entry heading: "<Name> — <Type/Adapter>". Body: ONLY the
   configuration fields a developer sets in SAP CPI (URL, method, headers, XPath, namespace, etc.).
   No prose explanations, no general SAP advice, no full JSON bodies.
+- CONTENT MODIFIER RULE: For Content Modifier entries list ONLY the SAP CPI fields a developer
+  fills in: "Message Body" (the expression or XPath only — not an explanation of what it does),
+  "Exchange Properties" (name = simple-expression pairs), "Headers" (name = value pairs).
+  Never explain what the payload is for or describe business logic — just the field values.
+- DEDUPLICATION RULE: If the Exception Subprocess uses an adapter or step with identical
+  configuration to a step already described in the main Component Configuration, do NOT repeat
+  all fields. Instead write: "Same configuration as <Main Flow Step Name> above." and list only
+  the fields that differ (e.g. a different endpoint path or body).
+- IMPORTANT DEDUP RULE: The "Important (Exception Subprocess):" section must contain ONLY
+  constraints that are specific to the exception handling path and are NOT already stated in the
+  main "Important:" section. Never repeat a bullet that was already made above.
 - ODATA RULE: For every OData V2 or OData V4 Receiver Adapter entry you MUST include ALL of
   these fields (use a clearly-labelled placeholder if the value is not in the source documents):
     Address: <full service-root URL, e.g. https://<host>/sap/opu/odata/sap/<SERVICE_NAME>>
