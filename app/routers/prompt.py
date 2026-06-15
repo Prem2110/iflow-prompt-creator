@@ -732,7 +732,7 @@ async def _stream_discover(files: List[UploadFile]) -> AsyncGenerator[str, None]
 
     yield _event("step", key="discover", message="Analysing document for integration interfaces…")
     try:
-        gen = await _chat_complete(_DISCOVER_SYSTEM, user_content, stream=True, max_tokens=4096)
+        gen = await _chat_complete(_DISCOVER_SYSTEM, user_content, stream=True, max_tokens=8192)
         result = ""
         async for text in gen:
             result += text
