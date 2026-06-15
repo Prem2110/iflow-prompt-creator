@@ -72,7 +72,8 @@ STRICT FORMATTING RULES:
     User Role: <ESBMessaging.send or custom role>
     CSRF Protected: <true | false>
     Message Exchange Pattern: <Request-Reply | One-Way>
-- HTTPS RECEIVER RULE: For every HTTPS Receiver Adapter entry include:
+- HTTP RECEIVER RULE: For every HTTP Receiver Adapter entry include (note: in SAP CPI the
+  receiver-side adapter is called "HTTP Receiver Adapter", not "HTTPS Receiver Adapter"):
     Address: <full URL including path>
     Proxy Type: <Internet | On-Premise>
     Method: <GET | POST | PUT | PATCH | DELETE>
