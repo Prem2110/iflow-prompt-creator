@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { FileText, Presentation, Sheet, AlignLeft, Paperclip, X } from "lucide-react";
 import styles from "./FileUpload.module.css";
 
 const ACCEPTED = ".pdf,.docx,.doc,.pptx,.xlsx,.xls,.csv,.txt,.json,.yaml,.yml,.xml,.wsdl,.png,.jpg,.jpeg,.webp,.gif";
@@ -20,13 +21,13 @@ function typeClass(name) {
 
 function iconFor(name) {
   const e = ext(name);
-  if (e === "pdf") return null; // uses PDF badge
-  if (["doc", "docx"].includes(e)) return "📝";
-  if (e === "pptx") return "📊";
-  if (["xlsx", "xls", "csv"].includes(e)) return "📋";
-  if (e === "txt") return "🗒️";
-  if (IMAGE_EXTS.has(e)) return null; // uses thumbnail
-  return "📎";
+  if (e === "pdf") return null;
+  if (["doc", "docx"].includes(e)) return <FileText size={16} />;
+  if (e === "pptx") return <Presentation size={16} />;
+  if (["xlsx", "xls", "csv"].includes(e)) return <Sheet size={16} />;
+  if (e === "txt") return <AlignLeft size={16} />;
+  if (IMAGE_EXTS.has(e)) return null;
+  return <Paperclip size={16} />;
 }
 
 function sizeLabel(bytes) {
@@ -52,7 +53,7 @@ function FileThumbnail({ file }) {
     return <span className={styles.pdfBadge}>PDF</span>;
   }
   const icon = iconFor(file.name);
-  return <span className={styles.fileIconInner}>{icon || "📎"}</span>;
+  return <span className={styles.fileIconInner}>{icon || <Paperclip size={16} />}</span>;
 }
 
 export default function FileUpload({ files, onChange, disabled = false }) {
@@ -108,7 +109,7 @@ export default function FileUpload({ files, onChange, disabled = false }) {
                 <span className={styles.fileSize}>{sizeLabel(f.size)}</span>
               </div>
               <button className={styles.removeBtn} onClick={() => removeFile(i)}
-                title="Remove" aria-label={`Remove ${f.name}`}>✕</button>
+                title="Remove" aria-label={`Remove ${f.name}`}><X size={12} /></button>
             </li>
           ))}
         </ul>

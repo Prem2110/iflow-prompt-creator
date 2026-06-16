@@ -1,4 +1,5 @@
 import { useEffect } from "react";
+import { FileText, Image, Files, RefreshCw, Clock, X, HelpCircle } from "lucide-react";
 import styles from "./HelpModal.module.css";
 
 const STEPS = [
@@ -34,11 +35,11 @@ const TIPS = [
 ];
 
 const LIMITS = [
-  { icon: "📄", label: "Max file size", value: "20 MB per file" },
-  { icon: "🖼️", label: "Diagram PDFs", value: "Rendered as images automatically when text is sparse (< 1,200 chars/page). Claude reads the full visual — swimlanes, arrows, decision points." },
-  { icon: "📑", label: "PDF image pages cap", value: "First 10 pages rendered; remaining pages are skipped to control token usage." },
-  { icon: "🔁", label: "Instructions auto-continuation", value: "Large iFlows that hit the token limit are automatically continued — up to 3 extra calls to complete the full guide." },
-  { icon: "⏱️", label: "LLM timeout", value: "120 seconds per request (configurable on the server)." },
+  { icon: FileText, label: "Max file size", value: "20 MB per file" },
+  { icon: Image, label: "Diagram PDFs", value: "Rendered as images automatically when text is sparse (< 1,200 chars/page). Claude reads the full visual — swimlanes, arrows, decision points." },
+  { icon: Files, label: "PDF image pages cap", value: "First 10 pages rendered; remaining pages are skipped to control token usage." },
+  { icon: RefreshCw, label: "Instructions auto-continuation", value: "Large iFlows that hit the token limit are automatically continued — up to 3 extra calls to complete the full guide." },
+  { icon: Clock, label: "LLM timeout", value: "120 seconds per request (configurable on the server)." },
 ];
 
 export default function HelpModal({ onClose }) {
@@ -55,10 +56,10 @@ export default function HelpModal({ onClose }) {
       <div className={styles.modal} role="dialog" aria-modal="true" aria-label="How to use Orbit Prompt Generator">
         <div className={styles.header}>
           <div className={styles.headerLeft}>
-            <span className={styles.headerIcon}>?</span>
+            <span className={styles.headerIcon}><HelpCircle size={18} /></span>
             <h2 className={styles.title}>How to use Orbit Prompt Generator</h2>
           </div>
-          <button className={styles.closeBtn} onClick={onClose} aria-label="Close help">✕</button>
+          <button className={styles.closeBtn} onClick={onClose} aria-label="Close help"><X size={16} /></button>
         </div>
 
         <div className={styles.body}>
@@ -105,7 +106,7 @@ export default function HelpModal({ onClose }) {
             <div className={styles.limitsList}>
               {LIMITS.map((l) => (
                 <div key={l.label} className={styles.limitItem}>
-                  <span className={styles.limitIcon}>{l.icon}</span>
+                  <span className={styles.limitIcon}><l.icon size={15} /></span>
                   <div className={styles.limitText}>
                     <span className={styles.limitLabel}>{l.label}</span>
                     <span className={styles.limitValue}>{l.value}</span>

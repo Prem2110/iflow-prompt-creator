@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Copy, Check } from "lucide-react";
 import ExportMenu from "./ExportMenu.jsx";
 import styles from "./PromptOutput.module.css";
 
@@ -23,7 +24,7 @@ export default function PromptOutput({ prompt, loading = false, toast }) {
         </div>
         <div className={styles.toolbarRight}>
           <button className={`${styles.copyBtn} ${copied ? styles.copied : ""}`} onClick={handleCopy}>
-            {copied ? "✓ Copied!" : "Copy"}
+            {copied ? <><Check size={13} /> Copied!</> : <><Copy size={13} /> Copy</>}
           </button>
           <ExportMenu content={prompt} filename="iflow-prompt" loading={loading} toast={toast} />
         </div>

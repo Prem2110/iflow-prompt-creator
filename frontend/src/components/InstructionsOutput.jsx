@@ -1,4 +1,5 @@
 import { useState, useMemo } from "react";
+import { ChevronDown, ChevronRight, Check, Copy, X } from "lucide-react";
 import ExportMenu from "./ExportMenu.jsx";
 import styles from "./InstructionsOutput.module.css";
 
@@ -29,7 +30,7 @@ function CodeBlock({ lang, code, toast }) {
       <div className={styles.codeHeader}>
         <span className={styles.codeLang}>{label}</span>
         <button className={`${styles.codeCopyBtn} ${copied ? styles.codeCopied : ""}`} onClick={handleCopy}>
-          {copied ? "✓ Copied" : "Copy"}
+          {copied ? <><Check size={12} /> Copied</> : <><Copy size={12} /> Copy</>}
         </button>
       </div>
       <pre className={styles.codeBody}><code>{code}</code></pre>
@@ -88,7 +89,7 @@ function Section({ title, rawText, children, query, defaultOpen, toast }) {
     <div className={`${styles.section} ${titleHit ? styles.sectionHit : ""}`}>
       <div className={styles.sectionHeader}>
         <button className={styles.sectionToggle} onClick={() => setOpen((v) => !v)}>
-          <span className={styles.sectionArrow}>{open ? "▾" : "▸"}</span>
+          <span className={styles.sectionArrow}>{open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}</span>
           <span className={styles.sectionTitle}>{highlight(title, query)}</span>
         </button>
         <button
@@ -96,7 +97,7 @@ function Section({ title, rawText, children, query, defaultOpen, toast }) {
           onClick={handleCopy}
           title="Copy this section"
         >
-          {copied ? "✓" : "Copy"}
+          {copied ? <Check size={12} /> : "Copy"}
         </button>
       </div>
       {open && <div className={styles.sectionBody}>{children}</div>}
@@ -274,7 +275,7 @@ export default function InstructionsOutput({
             title="Expand all sections"
           >Expand all</button>
           <button className={`${styles.copyBtn} ${copied ? styles.copied : ""}`} onClick={handleCopy}>
-            {copied ? "✓ Copied!" : "Copy all"}
+            {copied ? <><Check size={13} /> Copied!</> : <><Copy size={13} /> Copy all</>}
           </button>
           <ExportMenu content={instructions} filename={exportFilename} loading={loading} toast={toast} />
         </div>
@@ -298,7 +299,7 @@ export default function InstructionsOutput({
           </span>
         )}
         {query && (
-          <button className={styles.searchClear} onClick={() => setQuery("")}>✕</button>
+          <button className={styles.searchClear} onClick={() => setQuery("")}><X size={12} /></button>
         )}
       </div>
 

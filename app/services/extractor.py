@@ -15,20 +15,20 @@ _MIME_MAP = {
 }
 
 
-async def extract(file, data: bytes) -> list[dict]:
+async def extract(file, data: bytes, text_only: bool = False) -> list[dict]:
     """
     Returns a list of extracted items. Most file types yield one item;
-    diagram-heavy PDFs yield one image item per page.
+    diagram-heavy PDFs yield one image item per page (unless text_only=True).
 
     Each item is one of:
       {"kind": "text",  "name": str, "content": str}
       {"kind": "image", "name": str, "mime": str, "b64": str}
     """
     suffix = Path(file.filename or "").suffix.lower()
-    logger.info("Extracting %s (%d bytes)", file.filename, len(data))
+    logger.info("Extracting %s (%d bytes, text_only=%s)", file.filename, len(data), text_only)
 
     if suffix == ".pdf":
-        return _pdf(file.filename, data)
+        return _pdf(file.filename, data, force_text=text_only)
     if suffix in (".docx", ".doc"):
         return [{"kind": "text", "name": file.filename, "content": _docx(data)}]
     if suffix == ".pptx":
@@ -61,7 +61,7 @@ _PDF_MAX_IMAGE_PAGES = 10
 _PDF_RENDER_DPI = 150
 
 
-def _pdf(name: str, data: bytes) -> list[dict]:
+def _pdf(name: str, data: bytes, force_text: bool = False) -> list[dict]:
     from pypdf import PdfReader
 
     reader = PdfReader(io.BytesIO(data))
@@ -69,7 +69,7 @@ def _pdf(name: str, data: bytes) -> list[dict]:
     total_pages = len(pages_text)
     avg_chars = sum(len(t) for t in pages_text) / max(total_pages, 1)
 
-    if avg_chars < _PDF_DIAGRAM_THRESHOLD:
+    if not force_text and avg_chars < _PDF_DIAGRAM_THRESHOLD:
         logger.info(
             "%s: avg %.0f chars/page < %d — rendering as images",
             name, avg_chars, _PDF_DIAGRAM_THRESHOLD,

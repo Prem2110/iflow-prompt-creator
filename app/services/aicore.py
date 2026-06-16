@@ -253,3 +253,75 @@ async def chat_complete(
     log_llm_invoke({**response_data, "stream": False})
 
     return result
+
+
+async def chat_complete_messages(
+    system: str,
+    messages: list[dict],
+    stream: bool = False,
+    max_tokens: int = 2048,
+):
+    """
+    Like chat_complete but accepts a pre-built messages array for multi-turn chat.
+
+    stream=True  → returns an async generator yielding text chunks.
+    stream=False → returns the full response text as a string.
+    """
+    if stream:
+        async def _gen():
+            token = await _get_token()
+            url = _make_url("invoke-with-response-stream")
+            headers = _make_headers(token)
+            payload = {
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": max_tokens,
+                "system": system,
+                "messages": messages,
+            }
+            resource_group = os.environ.get("AICORE_RESOURCE_GROUP", "default")
+            logger.info("chat_complete_messages POST %s  resource-group=%s  stream=True", url, resource_group)
+            async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as client:
+                async with client.stream("POST", url, json=payload, headers=headers) as resp:
+                    if not resp.is_success:
+                        body = await resp.aread()
+                        raise ValueError(f"AI Core returned {resp.status_code}: {body}")
+                    buffer = ""
+                    async for chunk in resp.aiter_bytes():
+                        buffer += chunk.decode("utf-8", errors="replace")
+                        while "\n" in buffer:
+                            line, buffer = buffer.split("\n", 1)
+                            line = line.strip()
+                            if not line or not line.startswith("data: "):
+                                continue
+                            data_str = line[6:]
+                            if data_str == "[DONE]":
+                                return
+                            try:
+                                event = json.loads(data_str)
+                                if event.get("type") == "content_block_delta":
+                                    text = event.get("delta", {}).get("text", "")
+                                    if text:
+                                        yield text
+                            except json.JSONDecodeError:
+                                continue
+
+        return _gen()
+
+    # ── Non-streaming path ────────────────────────────────────────────────────
+    token = await _get_token()
+    url = _make_url("invoke")
+    headers = _make_headers(token)
+    payload = {
+        "anthropic_version": "bedrock-2023-05-31",
+        "max_tokens": max_tokens,
+        "system": system,
+        "messages": messages,
+    }
+    resource_group = os.environ.get("AICORE_RESOURCE_GROUP", "default")
+    logger.info("chat_complete_messages POST %s  resource-group=%s  stream=False", url, resource_group)
+    async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as client:
+        resp = await client.post(url, json=payload, headers=headers)
+    if not resp.is_success:
+        logger.error("AI Core error %s: %s", resp.status_code, resp.text)
+        raise ValueError(f"AI Core returned {resp.status_code}")
+    return resp.json()["content"][0]["text"]
