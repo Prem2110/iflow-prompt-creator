@@ -1,52 +1,75 @@
 import { useEffect } from "react";
-import { FileText, Image, Files, RefreshCw, Clock, X, HelpCircle } from "lucide-react";
+import { FileText, Image, Files, RefreshCw, Clock, X, HelpCircle, Search, MessageSquare, Layers, LayoutPanelLeft } from "lucide-react";
 import styles from "./HelpModal.module.css";
 
 const STEPS = [
   {
     num: "1",
     title: "Upload your files",
-    body: "Drag and drop files onto the upload area, or click to browse. You can upload multiple files at once — the AI reads all of them together.",
+    body: "Drag and drop files onto the upload area, or click to browse. Upload multiple files at once — the AI reads all of them together.",
     note: "Supported: PDF, DOCX, PPTX, XLSX, CSV, TXT, JSON, YAML, XML, WSDL, PNG, JPG",
   },
   {
     num: "2",
     title: "Choose what to generate",
-    body: "Pick one of the three actions depending on what you need:",
+    body: "Use the action buttons on the left to instantly generate one of three outputs:",
     actions: [
       { label: "Generate Prompt", color: "indigo", desc: "Structured iFlow configuration prompt — topology, adapter settings, component config. Paste directly into your iFlow builder." },
-      { label: "Instructions", color: "indigo", desc: "Complete manual build guide with exact SAP CPI UI steps, full Groovy / XSLT / JSONata scripts, and Postman + cURL testing instructions." },
-      { label: "Summarize", color: "teal", desc: "Concise overview — iFlow purpose, topology diagram, adapters used, key configuration, and gotchas." },
+      { label: "Instructions",    color: "indigo", desc: "Complete manual build guide with exact SAP CPI UI steps, full Groovy / XSLT / JSONata scripts, and Postman + cURL testing commands." },
+      { label: "Summarize",       color: "teal",   desc: "Concise overview — iFlow purpose, topology diagram, adapters used, key configuration decisions, and gotchas." },
     ],
   },
   {
     num: "3",
     title: "Review and export",
-    body: "Switch between the Prompt, Instructions, and Summary tabs at any time. Use the Copy button to copy to clipboard, or Export to download as TXT, Word (.docx), or PDF.",
+    body: "Switch between the Prompt, Instructions, and Summary tabs at any time. Copy to clipboard with one click, or export as TXT, Word (.docx), or PDF.",
+  },
+];
+
+const FEATURES = [
+  {
+    Icon: Search,
+    title: "Discover iFlows",
+    desc: "Click Discover Flows to let the AI read your uploaded documents and automatically extract every iFlow it finds — name, direction, source/target systems, and a description. Each flow appears as a card you can expand.",
+  },
+  {
+    Icon: LayoutPanelLeft,
+    title: "Per-iFlow detail view",
+    desc: "Click any discovered flow card to open its detail view. The left pane generates a Prompt, Instructions, or Summary scoped exclusively to that iFlow. The right pane is a persistent chat panel — it auto-indexes your documents on load so you can ask questions about that specific flow immediately.",
+  },
+  {
+    Icon: MessageSquare,
+    title: "Document Chat",
+    desc: "The Chat tab (top-right) lets you ask free-form questions about all your uploaded documents. Documents are indexed automatically the first time you switch to the tab. The AI uses RAG (retrieval-augmented generation) to find the most relevant sections before answering.",
+  },
+  {
+    Icon: Layers,
+    title: "Multi-Flow generation",
+    desc: "In the Discover view, select one or more iFlow cards and click Generate Selected. The tool generates a configuration prompt for each chosen flow in sequence and collects them all in the Multi-Flow tab.",
   },
 ];
 
 const TIPS = [
-  "The more detail in your uploaded files, the more accurate the output.",
-  "Upload API specs (Swagger/OpenAPI JSON/YAML or WSDL) to get adapter settings pre-filled from the spec.",
-  "If the output is incomplete, click the ↺ Retry button on the active tab — it will regenerate.",
-  "You can upload a mix of documents and screenshots in a single request.",
-  "All three outputs are independent — you can generate all three from the same upload.",
+  "The more detail in your uploaded files, the more accurate the output — include API specs, mapping docs, and architecture diagrams together.",
+  "Upload Swagger/OpenAPI JSON/YAML or WSDL files to have adapter settings pre-filled from the spec.",
+  "In the per-iFlow chat panel, ask things like \"What adapter is used?\" or \"Explain the error handling\" — answers are scoped to that specific flow.",
+  "If the Chat tab has already indexed your documents, opening a flow detail view reuses the same index automatically (no re-indexing).",
+  "All three outputs (Prompt, Instructions, Summary) are independent — you can generate all three from the same upload without uploading again.",
+  "If output seems truncated, click the ↺ Regenerate button on the active tab to retry.",
+  "You can upload a mix of text documents and screenshots/diagrams in a single request.",
 ];
 
 const LIMITS = [
-  { icon: FileText, label: "Max file size", value: "20 MB per file" },
-  { icon: Image, label: "Diagram PDFs", value: "Rendered as images automatically when text is sparse (< 1,200 chars/page). Claude reads the full visual — swimlanes, arrows, decision points." },
-  { icon: Files, label: "PDF image pages cap", value: "First 10 pages rendered; remaining pages are skipped to control token usage." },
-  { icon: RefreshCw, label: "Instructions auto-continuation", value: "Large iFlows that hit the token limit are automatically continued — up to 3 extra calls to complete the full guide." },
-  { icon: Clock, label: "LLM timeout", value: "120 seconds per request (configurable on the server)." },
+  { icon: FileText,   label: "Max file size",                value: "20 MB per file" },
+  { icon: Image,      label: "Diagram PDFs",                 value: "Rendered as images automatically when text is sparse (< 1,200 chars/page). Claude reads the full visual — swimlanes, arrows, decision points." },
+  { icon: Files,      label: "PDF image pages cap",          value: "First 10 pages rendered as images; remaining pages skipped to control token usage." },
+  { icon: RefreshCw,  label: "Instructions auto-continuation", value: "Large iFlows that hit the token limit are automatically continued — up to 3 extra calls to complete the full guide." },
+  { icon: Clock,      label: "LLM timeout",                  value: "120 seconds per request (configurable on the server)." },
 ];
 
 export default function HelpModal({ onClose }) {
   useEffect(() => {
-    function handleKey(e) {
-      if (e.key === "Escape") onClose();
-    }
+    function handleKey(e) { if (e.key === "Escape") onClose(); }
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
   }, [onClose]);
@@ -63,6 +86,7 @@ export default function HelpModal({ onClose }) {
         </div>
 
         <div className={styles.body}>
+
           {/* Steps */}
           <div className={styles.steps}>
             {STEPS.map((step) => (
@@ -85,6 +109,22 @@ export default function HelpModal({ onClose }) {
                 </div>
               </div>
             ))}
+          </div>
+
+          {/* Features */}
+          <div className={styles.featuresBox}>
+            <h3 className={styles.featuresTitle}>More features</h3>
+            <div className={styles.featureGrid}>
+              {FEATURES.map(({ Icon, title, desc }) => (
+                <div key={title} className={styles.featureCard}>
+                  <div className={styles.featureIcon}><Icon size={15} /></div>
+                  <div>
+                    <p className={styles.featureTitle}>{title}</p>
+                    <p className={styles.featureDesc}>{desc}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
 
           {/* Tips */}
@@ -126,6 +166,7 @@ export default function HelpModal({ onClose }) {
               All AI generation runs on SAP AI Core using Anthropic's Claude model hosted in a secure, enterprise-grade environment. No data is stored or used for model training.
             </p>
           </div>
+
         </div>
       </div>
     </div>
