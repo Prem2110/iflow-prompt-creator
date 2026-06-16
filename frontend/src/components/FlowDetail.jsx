@@ -18,6 +18,10 @@ const ALL_MODES = [
 
 // ── Inline markdown renderer (mirrors Chat.jsx) ───────────────────────────────
 
+function isTableRow(line) { return line.trim().startsWith("|") && line.trim().endsWith("|"); }
+function isSeparator(line) { return /^\|[\s\-:|]+\|$/.test(line.trim()); }
+function parseRow(line) { return line.trim().slice(1, -1).split("|").map(c => c.trim()); }
+
 function renderInline(text) {
   const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
   return parts.map((p, i) => {
@@ -31,11 +35,28 @@ function renderBubble(text, streaming) {
   const lines = text.split("\n");
   const els = [];
   let i = 0;
+
   while (i < lines.length) {
-    const t = lines[i].trim();
-    if (t) els.push(<p key={i} className={styles.bubblePara}>{renderInline(lines[i])}</p>);
+    // Markdown table
+    if (isTableRow(lines[i]) && i + 1 < lines.length && isSeparator(lines[i + 1])) {
+      const headers = parseRow(lines[i]);
+      i += 2;
+      const rows = [];
+      while (i < lines.length && isTableRow(lines[i])) { rows.push(parseRow(lines[i])); i++; }
+      els.push(
+        <table key={`tbl-${i}`} className={styles.mdTable}>
+          <thead><tr>{headers.map((h, j) => <th key={j}>{renderInline(h)}</th>)}</tr></thead>
+          <tbody>{rows.map((row, j) => <tr key={j}>{row.map((cell, k) => <td key={k}>{renderInline(cell)}</td>)}</tr>)}</tbody>
+        </table>
+      );
+      continue;
+    }
+
+    const trimmed = lines[i].trim();
+    if (trimmed) els.push(<p key={i} className={styles.bubblePara}>{renderInline(lines[i])}</p>);
     i++;
   }
+
   if (streaming) els.push(<span key="cur" className={styles.cursor}>▋</span>);
   return els;
 }

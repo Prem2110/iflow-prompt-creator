@@ -295,6 +295,29 @@
 
 .bubblePara { margin: 0 0 0.3rem; }
 .bubblePara:last-child { margin-bottom: 0; }
+
+.mdTable {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 0.76rem;
+  margin: 0.4rem 0;
+}
+.mdTable th,
+.mdTable td {
+  border: 1px solid var(--border);
+  padding: 0.28rem 0.55rem;
+  text-align: left;
+  vertical-align: top;
+}
+.mdTable th {
+  background: var(--surface-2, rgba(255,255,255,0.05));
+  font-weight: 700;
+  color: var(--text-2);
+}
+.mdTable tr:nth-child(even) td {
+  background: rgba(255,255,255,0.02);
+}
+
 .bubbleCode {
   font-family: 'Consolas', 'Menlo', monospace;
   font-size: 0.78em;
