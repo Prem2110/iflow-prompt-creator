@@ -799,26 +799,25 @@
 .feedbackBtn:hover { opacity: 0.8; background: var(--surface-2); }
 .feedbackActive { opacity: 1 !important; border-color: var(--accent) !important; background: var(--accent-dim) !important; }
 
-/* ─── Disclaimer ──────────────────────────────────────────────────────── */
-.disclaimer {
+/* ─── Panel footer (disclaimer) ───────────────────────────────────────── */
+.panelFooter {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.38rem 1.1rem;
-  background: var(--accent-dim);
-  border-bottom: 1px solid rgba(74,158,255,0.12);
-  font-size: 0.72rem;
-  color: var(--accent);
+  gap: 0.45rem;
+  padding: 0.3rem 1.1rem;
+  border-top: 1px solid var(--border);
+  font-size: 0.68rem;
+  color: var(--text-3);
   flex-shrink: 0;
-  opacity: 0.85;
+  opacity: 0.75;
 }
 .disclaimerIcon {
-  width: 13px;
-  height: 13px;
+  width: 12px;
+  height: 12px;
   border-radius: 50%;
-  background: var(--accent);
-  color: var(--bg);
-  font-size: 0.58rem;
+  border: 1px solid var(--text-3);
+  color: var(--text-3);
+  font-size: 0.55rem;
   font-weight: 800;
   display: inline-flex;
   align-items: center;

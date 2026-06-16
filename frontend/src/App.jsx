@@ -562,14 +562,6 @@ export default function App() {
                 </div>
               )}
 
-              {/* Disclaimer */}
-              {activeTab !== "chat" && (
-                <div className={styles.disclaimer}>
-                  <span className={styles.disclaimerIcon}>i</span>
-                  Content is generated from your uploaded documents. Always review before use.
-                </div>
-              )}
-
               {/* Content */}
               <div className={styles.content}>
                 {activeTab === "prompt" && (prompt
@@ -652,6 +644,12 @@ export default function App() {
               </p>
             </div>
           )}
+
+          {/* Panel footer — disclaimer */}
+          <div className={styles.panelFooter}>
+            <span className={styles.disclaimerIcon}>i</span>
+            Content is generated from your uploaded documents. Always review before use.
+          </div>
         </div>
 
         {/* ── Chat drawer ── */}
