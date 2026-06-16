@@ -986,6 +986,10 @@
   border-left-color: var(--border);
 }
 
+.chatDrawerOpen.chatDrawerWide {
+  width: 575px;
+}
+
 .drawerHeader {
   display: flex;
   align-items: center;
@@ -995,6 +999,7 @@
   flex-shrink: 0;
   min-width: 460px;
 }
+.chatDrawerWide .drawerHeader { min-width: 575px; }
 
 .drawerTitle {
   display: flex;
@@ -1056,3 +1061,4 @@
   min-width: 460px;
   padding: 0.6rem 0.85rem;
 }
+.chatDrawerWide .drawerBody { min-width: 575px; }

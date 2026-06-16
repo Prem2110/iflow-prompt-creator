@@ -653,7 +653,7 @@ export default function App() {
         </div>
 
         {/* ── Chat drawer ── */}
-        <div className={`${styles.chatDrawer} ${chatOpen ? styles.chatDrawerOpen : ""}`}>
+        <div className={`${styles.chatDrawer} ${chatOpen ? styles.chatDrawerOpen : ""} ${!sidebarOpen ? styles.chatDrawerWide : ""}`}>
           <div className={styles.drawerHeader}>
             <div className={styles.drawerTitle}>
               <MessageSquare size={13} />
