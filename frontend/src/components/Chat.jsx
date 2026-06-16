@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { MessageSquare, Send, Check, X, Paperclip } from "lucide-react";
+import { MessageSquare, Send, Check, X, Paperclip, ChevronRight } from "lucide-react";
 import { makeRenderBubble } from "../utils/renderMarkdown.jsx";
 import styles from "./Chat.module.css";
 
@@ -35,6 +35,7 @@ export default function Chat({ files, sessionId, onSessionReady, toast, flowCont
   const [indexedFiles, setIndexedFiles] = useState([]);
   const [extraFiles,   setExtraFiles]   = useState([]);
   const [error,        setError]        = useState("");
+  const [statusOpen,   setStatusOpen]   = useState(false);
   const bottomRef    = useRef(null);
   const indexingRef  = useRef(false);
   const addFileRef   = useRef(null);
@@ -42,6 +43,10 @@ export default function Chat({ files, sessionId, onSessionReady, toast, flowCont
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  useEffect(() => {
+    if (indexing) setStatusOpen(true);
+  }, [indexing]);
 
   function upsertStep(key, state, message) {
     setIndexSteps(prev => {
@@ -195,45 +200,68 @@ export default function Chat({ files, sessionId, onSessionReady, toast, flowCont
     <div className={styles.container}>
       {/* Status bar */}
       <div className={styles.statusBar}>
-        <div className={styles.statusBarRow}>
+        {/* Ribbon — always visible, click to expand */}
+        <div className={styles.statusRibbon} onClick={() => setStatusOpen(v => !v)}>
+          <ChevronRight size={10} className={`${styles.ribbonChevron} ${statusOpen ? styles.ribbonChevronOpen : ""}`} />
           {indexing ? (
-            <span className={styles.statusIndexing}>
-              <span className={styles.spinner} /> Indexing documents…
-            </span>
+            <>
+              <span className={styles.spinnerSm} />
+              <span className={styles.ribbonText}>Indexing…</span>
+            </>
           ) : sessionId ? (
-            <span className={styles.statusReady}>
-              <span className={styles.readyDot} />
-              {indexedFiles.length} document{indexedFiles.length !== 1 ? "s" : ""} indexed
-              <label className={styles.addFilesBtn} title="Add more files to context">
-                <Paperclip size={10} /> Add files
-                <input
-                  ref={addFileRef}
-                  type="file"
-                  multiple
-                  hidden
-                  onChange={handleAddFiles}
-                  accept=".pdf,.docx,.pptx,.xlsx,.csv,.txt,.json,.yaml,.yml,.xml,.wsdl,.png,.jpg,.jpeg"
-                />
-              </label>
-              <button className={styles.reindexBtn} onClick={() => handleIndex([...files, ...extraFiles], true)} title="Re-index documents">&#8635;</button>
-            </span>
+            <>
+              <span className={styles.readyDotSm} />
+              <span className={styles.ribbonText}>{indexedFiles.length} doc{indexedFiles.length !== 1 ? "s" : ""} indexed</span>
+            </>
           ) : (
-            <span className={styles.statusEmpty}>No documents indexed yet</span>
+            <span className={styles.ribbonText}>No documents indexed</span>
+          )}
+          {flowContext && isReady && (
+            <span className={styles.ribbonFlowChip}>{flowContext.name}</span>
           )}
         </div>
 
-        {flowContext && isReady && (
-          <div className={styles.statusBarRow}>
-            <span className={styles.flowContextChip}>
-              Flow: {flowContext.name}
-            </span>
-          </div>
-        )}
+        {/* Collapsible details */}
+        {statusOpen && (
+          <div className={styles.statusDetails}>
+            <div className={styles.statusBarRow}>
+              {indexing ? (
+                <span className={styles.statusIndexing}>
+                  <span className={styles.spinner} /> Indexing documents…
+                </span>
+              ) : sessionId ? (
+                <span className={styles.statusReady}>
+                  <span className={styles.readyDot} />
+                  {indexedFiles.length} document{indexedFiles.length !== 1 ? "s" : ""} indexed
+                  <label className={styles.addFilesBtn} title="Add more files to context">
+                    <Paperclip size={10} /> Add files
+                    <input
+                      ref={addFileRef}
+                      type="file"
+                      multiple
+                      hidden
+                      onChange={handleAddFiles}
+                      accept=".pdf,.docx,.pptx,.xlsx,.csv,.txt,.json,.yaml,.yml,.xml,.wsdl,.png,.jpg,.jpeg"
+                    />
+                  </label>
+                  <button className={styles.reindexBtn} onClick={e => { e.stopPropagation(); handleIndex([...files, ...extraFiles], true); }} title="Re-index documents">&#8635;</button>
+                </span>
+              ) : (
+                <span className={styles.statusEmpty}>No documents indexed yet</span>
+              )}
+            </div>
 
-        {/* Live step list during indexing */}
-        {indexSteps.length > 0 && (
-          <div className={styles.indexSteps}>
-            {indexSteps.map(step => <StepRow key={step.key} step={step} />)}
+            {flowContext && isReady && (
+              <div className={styles.statusBarRow}>
+                <span className={styles.flowContextChip}>Flow: {flowContext.name}</span>
+              </div>
+            )}
+
+            {indexSteps.length > 0 && (
+              <div className={styles.indexSteps}>
+                {indexSteps.map(step => <StepRow key={step.key} step={step} />)}
+              </div>
+            )}
           </div>
         )}
       </div>

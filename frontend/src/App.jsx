@@ -343,7 +343,7 @@ export default function App() {
               {chatSessionId && <span className={styles.chatActiveDot} />}
             </button>
           )}
-          <button className={styles.iconBtn} onClick={() => setDark((d) => !d)} title="Toggle theme">
+          <button className={`${styles.iconBtn} ${styles.themeBtn}`} onClick={() => setDark((d) => !d)} title="Toggle theme">
             {dark ? <Sun size={15} /> : <Moon size={15} />}
           </button>
           <button className={styles.iconBtn} onClick={() => setShowHelp(true)} title="Help">

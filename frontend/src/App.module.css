@@ -1,3 +1,10 @@
+/* ─── Houdini property for theme-button border animation ──────────────── */
+@property --btn-angle {
+  syntax: '<angle>';
+  initial-value: 0deg;
+  inherits: false;
+}
+
 /* ─── Theme variables ─────────────────────────────────────────────────── */
 :global(:root) {
   /* ── backward-compat aliases for component CSS ── */
@@ -151,6 +158,48 @@
   background: var(--surface-2);
   border-color: var(--border-strong);
   color: var(--text);
+}
+
+/* ─── Theme toggle: rotating gradient border ───────────────────────────── */
+.themeBtn {
+  position: relative;
+  isolation: isolate;
+  border: none;
+  background: transparent;
+}
+.themeBtn:hover {
+  background: transparent;
+  border: none;
+}
+.themeBtn::before {
+  content: '';
+  position: absolute;
+  inset: -1.5px;
+  border-radius: 6.5px;
+  background: conic-gradient(
+    from var(--btn-angle),
+    var(--accent),
+    var(--success),
+    var(--amber),
+    var(--accent)
+  );
+  z-index: -2;
+  animation: themeBorderSpin 2.5s linear infinite;
+}
+.themeBtn::after {
+  content: '';
+  position: absolute;
+  inset: 1px;
+  border-radius: 4.5px;
+  background: var(--surface);
+  z-index: -1;
+  transition: background 0.15s;
+}
+.themeBtn:hover::after {
+  background: var(--surface-2);
+}
+@keyframes themeBorderSpin {
+  to { --btn-angle: 360deg; }
 }
 
 .historyBtn {
