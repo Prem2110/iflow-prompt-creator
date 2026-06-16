@@ -1,5 +1,5 @@
 import { useEffect } from "react";
-import { FileText, Image, Files, RefreshCw, Clock, X, HelpCircle, Search, MessageSquare, Layers, LayoutPanelLeft } from "lucide-react";
+import { FileText, Image, Files, RefreshCw, Clock, X, HelpCircle, MessageSquare, Layers, LayoutPanelLeft } from "lucide-react";
 import styles from "./HelpModal.module.css";
 
 const STEPS = [
@@ -11,8 +11,17 @@ const STEPS = [
   },
   {
     num: "2",
+    title: "Discover iFlows",
+    body: "Click Discover Flows to let the AI scan your documents and automatically extract every integration flow it finds — name, direction, source/target systems, and a description. Each iFlow appears as a card.",
+    actions: [
+      { label: "Open a flow card",   color: "teal",  desc: "Opens a detail view with generation and a chat panel scoped to that specific iFlow. Ask questions, generate a Prompt, Instructions, or Summary for just that flow." },
+      { label: "Select + Generate",  color: "indigo", desc: "Tick multiple flow cards and click Generate Selected to produce a configuration prompt for each chosen flow in one batch — collected in the Multi-Flow tab." },
+    ],
+  },
+  {
+    num: "3",
     title: "Choose what to generate",
-    body: "Use the action buttons on the left to instantly generate one of three outputs:",
+    body: "Use the action buttons to instantly generate one of three outputs across all your uploaded documents:",
     actions: [
       { label: "Generate Prompt", color: "indigo", desc: "Structured iFlow configuration prompt — topology, adapter settings, component config. Paste directly into your iFlow builder." },
       { label: "Instructions",    color: "indigo", desc: "Complete manual build guide with exact SAP CPI UI steps, full Groovy / XSLT / JSONata scripts, and Postman + cURL testing commands." },
@@ -20,7 +29,7 @@ const STEPS = [
     ],
   },
   {
-    num: "3",
+    num: "4",
     title: "Review and export",
     body: "Switch between the Prompt, Instructions, and Summary tabs at any time. Copy to clipboard with one click, or export as TXT, Word (.docx), or PDF.",
   },
@@ -28,24 +37,19 @@ const STEPS = [
 
 const FEATURES = [
   {
-    Icon: Search,
-    title: "Discover iFlows",
-    desc: "Click Discover Flows to let the AI read your uploaded documents and automatically extract every iFlow it finds — name, direction, source/target systems, and a description. Each flow appears as a card you can expand.",
-  },
-  {
     Icon: LayoutPanelLeft,
     title: "Per-iFlow detail view",
-    desc: "Click any discovered flow card to open its detail view. The left pane generates a Prompt, Instructions, or Summary scoped exclusively to that iFlow. The right pane is a persistent chat panel — it auto-indexes your documents on load so you can ask questions about that specific flow immediately.",
+    desc: "Inside any discovered flow card, generate a Prompt, Instructions, or Summary scoped exclusively to that iFlow. The chat panel auto-indexes your documents so you can ask targeted questions immediately.",
   },
   {
     Icon: MessageSquare,
     title: "Document Chat",
-    desc: "The Chat tab (top-right) lets you ask free-form questions about all your uploaded documents. Documents are indexed automatically the first time you switch to the tab. The AI uses RAG (retrieval-augmented generation) to find the most relevant sections before answering.",
+    desc: "Click Chat (top-right) to ask free-form questions across all uploaded documents. The AI uses RAG to find the most relevant sections before answering. Add extra files mid-conversation to enrich the context.",
   },
   {
     Icon: Layers,
-    title: "Multi-Flow generation",
-    desc: "In the Discover view, select one or more iFlow cards and click Generate Selected. The tool generates a configuration prompt for each chosen flow in sequence and collects them all in the Multi-Flow tab.",
+    title: "Multi-Flow tab",
+    desc: "Results from Generate Selected are collected here — one block per iFlow, in the order they were generated. Copy or export the entire batch at once.",
   },
 ];
 
