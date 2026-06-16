@@ -7,6 +7,7 @@ import HelpModal from "./components/HelpModal.jsx";
 import Toast from "./components/Toast.jsx";
 import FlowDiscovery from "./components/FlowDiscovery.jsx";
 import MultiPromptOutput from "./components/MultiPromptOutput.jsx";
+import Chat from "./components/Chat.jsx";
 import { useToast } from "./hooks/useToast.js";
 import sierraLogo from "./assets/logosierra.png";
 import styles from "./App.module.css";
@@ -73,6 +74,8 @@ export default function App() {
   const [generatingFlowId, setGeneratingFlowId] = useState(null);
   const [multiLoading, setMultiLoading] = useState(false);
 
+  const [chatSessionId, setChatSessionId] = useState(null);
+
   const [history, setHistory] = useState(loadHistory);
   const [dark, setDark] = useState(() => localStorage.getItem(DARK_KEY) === "true");
 
@@ -82,6 +85,8 @@ export default function App() {
     document.documentElement.setAttribute("data-theme", dark ? "dark" : "light");
     localStorage.setItem(DARK_KEY, dark);
   }, [dark]);
+
+  useEffect(() => { setChatSessionId(null); }, [files]);
 
   function upsertStep(key, state, message) {
     setSteps((prev) => {
@@ -302,6 +307,7 @@ export default function App() {
     setFeedback({ prompt: null, instructions: null, summary: null });
     setDiscoveredFlows([]); setSelectedFlowIds(new Set()); setMultiPrompts({});
     setDiscoverLoading(false); setGeneratingFlowId(null); setMultiLoading(false);
+    setChatSessionId(null);
   }
 
   function handleFeedback(tab, value) {
@@ -318,7 +324,7 @@ export default function App() {
     toast("Restored from history", "info");
   }
 
-  const hasOutput = prompt || instructions || summary || Object.keys(multiPrompts).length > 0 || multiLoading;
+  const hasOutput = prompt || instructions || summary || Object.keys(multiPrompts).length > 0 || multiLoading || files.length > 0;
   const isGenerating = loading && loadingMode === "prompt";
   const isInstructing = loading && loadingMode === "instructions";
   const isSummarising = loading && loadingMode === "summary";
@@ -333,6 +339,7 @@ export default function App() {
       content: Object.keys(multiPrompts).length > 0 ? "has" : "",
       ts: null,
     }] : []),
+    ...(files.length > 0 ? [{ key: "chat", label: "Chat", content: chatSessionId ? "has" : "", ts: null }] : []),
   ];
 
   return (
@@ -466,7 +473,7 @@ export default function App() {
                   const handlers = { prompt: handleGenerate, instructions: handleInstructions, summary: handleSummary };
                   const spinning = { prompt: isGenerating, instructions: isInstructing, summary: isSummarising };
                   if (activeTab !== key) return null;
-                  if (key === "multiflow") return null;
+                  if (key === "multiflow" || key === "chat") return null;
                   return (
                     <div key={key} className={styles.tabActionsInner}>
                       <button className={styles.btnRetry} disabled={loading} onClick={() => {
@@ -530,6 +537,16 @@ export default function App() {
                 prompts={multiPrompts}
                 generatingFlowId={generatingFlowId}
                 loading={multiLoading}
+                toast={toast}
+              />
+            )}
+
+            {/* Chat tab */}
+            {activeTab === "chat" && (
+              <Chat
+                files={files}
+                sessionId={chatSessionId}
+                onSessionReady={(id) => setChatSessionId(id)}
                 toast={toast}
               />
             )}
