@@ -1,4 +1,4 @@
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ExternalLink } from "lucide-react";
 import styles from "./FlowDiscovery.module.css";
 import { badgeStyle } from "./dirBadge.js";
 
@@ -9,6 +9,7 @@ export default function FlowDiscovery({
   onSelectAll,
   onDeselectAll,
   onGenerate,
+  onViewDetail,
   generatingFlowId,
   loading,
 }) {
@@ -70,6 +71,15 @@ export default function FlowDiscovery({
                 </div>
                 <p className={styles.flowDesc}>{flow.description}</p>
               </div>
+              {/* Open detail view button */}
+              <button
+                className={styles.openBtn}
+                onClick={(e) => { e.stopPropagation(); onViewDetail(flow); }}
+                title="Open — generate Prompt, Instructions or Summary for this flow"
+                disabled={loading}
+              >
+                <ExternalLink size={13} /> Open
+              </button>
             </div>
           );
         })}

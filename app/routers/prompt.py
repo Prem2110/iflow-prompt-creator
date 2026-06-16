@@ -3,7 +3,7 @@ import logging
 from pathlib import Path
 from typing import AsyncGenerator, List
 
-from fastapi import APIRouter, File, UploadFile
+from fastapi import APIRouter, File, Form as FastAPIForm, UploadFile
 from fastapi.responses import StreamingResponse
 
 from app.services.aicore import chat_complete as _chat_complete
@@ -509,7 +509,7 @@ Rules:
 _INSTRUCTIONS_SUFFIX = "\n\nGenerate the complete SAP CPI manual build guide and Postman testing instructions from the content above."
 
 
-async def _stream_instructions(files: List[UploadFile]) -> AsyncGenerator[str, None]:
+async def _stream_instructions(files: List[UploadFile], flow=None) -> AsyncGenerator[str, None]:
     for f in files:
         ext = Path(f.filename or "").suffix.lower()
         if ext not in _ALLOWED_EXTENSIONS:
@@ -549,6 +549,15 @@ async def _stream_instructions(files: List[UploadFile]) -> AsyncGenerator[str, N
                 part["text"] = part["text"].replace(SUFFIX.strip(), _INSTRUCTIONS_SUFFIX.strip())
                 break
 
+    # Inject flow focus when targeting a specific iFlow
+    if flow:
+        keys = ["name", "direction", "source_system", "source_entity", "target_system", "target_api", "trigger", "description"]
+        focus = _FLOW_FOCUS_PREFIX.format(**{k: flow.get(k, "") for k in keys})
+        if isinstance(user_content, str):
+            user_content = focus + user_content
+        else:
+            user_content = [{"type": "text", "text": focus}] + list(user_content)
+
     yield _event("step", key="generate", message="Claude is writing the step-by-step instructions…")
     try:
         gen = await _chat_complete(_INSTRUCTIONS_SYSTEM, user_content, stream=True, max_tokens=8192, max_continuations=6)
@@ -571,6 +580,20 @@ async def generate_instructions(files: List[UploadFile] = File(...)):
     logger.info("Instructions request — %d file(s): %s", len(files), [f.filename for f in files])
     return StreamingResponse(
         _stream_instructions(files),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@router.post("/generate-flow-instructions")
+async def generate_flow_instructions(
+    files: List[UploadFile] = File(...),
+    flow_json: str = FastAPIForm(...),
+):
+    flow = json.loads(flow_json)
+    logger.info("Flow instructions request — flow: %s", flow.get("name"))
+    return StreamingResponse(
+        _stream_instructions(files, flow=flow),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -631,7 +654,7 @@ Rules:
 _SUMMARY_SUFFIX = "\n\nGenerate the concise iFlow summary from the content above."
 
 
-async def _stream_summary(files: List[UploadFile]) -> AsyncGenerator[str, None]:
+async def _stream_summary(files: List[UploadFile], flow=None) -> AsyncGenerator[str, None]:
     for f in files:
         ext = Path(f.filename or "").suffix.lower()
         if ext not in _ALLOWED_EXTENSIONS:
@@ -669,6 +692,15 @@ async def _stream_summary(files: List[UploadFile]) -> AsyncGenerator[str, None]:
                 part["text"] = part["text"].replace(SUFFIX.strip(), _SUMMARY_SUFFIX.strip())
                 break
 
+    # Inject flow focus when targeting a specific iFlow
+    if flow:
+        keys = ["name", "direction", "source_system", "source_entity", "target_system", "target_api", "trigger", "description"]
+        focus = _FLOW_FOCUS_PREFIX.format(**{k: flow.get(k, "") for k in keys})
+        if isinstance(user_content, str):
+            user_content = focus + user_content
+        else:
+            user_content = [{"type": "text", "text": focus}] + list(user_content)
+
     yield _event("step", key="generate", message="Claude is summarising the iFlow…")
     try:
         gen = await _chat_complete(_SUMMARY_SYSTEM, user_content, stream=True, max_tokens=2048)
@@ -691,6 +723,20 @@ async def summarize(files: List[UploadFile] = File(...)):
     logger.info("Summary request — %d file(s): %s", len(files), [f.filename for f in files])
     return StreamingResponse(
         _stream_summary(files),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+@router.post("/generate-flow-summary")
+async def generate_flow_summary(
+    files: List[UploadFile] = File(...),
+    flow_json: str = FastAPIForm(...),
+):
+    flow = json.loads(flow_json)
+    logger.info("Flow summary request — flow: %s", flow.get("name"))
+    return StreamingResponse(
+        _stream_summary(files, flow=flow),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
@@ -770,8 +816,6 @@ async def discover_flows(files: List[UploadFile] = File(...)):
 
 
 # ── Generate single flow prompt endpoint ─────────────────────────────────────
-
-from fastapi import Form as FastAPIForm
 
 
 @router.post("/generate-flow-prompt")

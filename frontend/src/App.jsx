@@ -13,6 +13,7 @@ import Toast from "./components/Toast.jsx";
 import FlowDiscovery from "./components/FlowDiscovery.jsx";
 import MultiPromptOutput from "./components/MultiPromptOutput.jsx";
 import Chat from "./components/Chat.jsx";
+import FlowDetail from "./components/FlowDetail.jsx";
 import { useToast } from "./hooks/useToast.js";
 import sierraLogo from "./assets/logosierra.png";
 import styles from "./App.module.css";
@@ -75,8 +76,9 @@ export default function App() {
   const [generatingFlowId,  setGeneratingFlowId]  = useState(null);
   const [multiLoading,      setMultiLoading]      = useState(false);
 
-  const [chatSessionId,  setChatSessionId]  = useState(null);
-  const [showFeedback,   setShowFeedback]   = useState(false);
+  const [chatSessionId,       setChatSessionId]       = useState(null);
+  const [showFeedback,        setShowFeedback]        = useState(false);
+  const [selectedFlowDetail,  setSelectedFlowDetail]  = useState(null);
 
   const [history, setHistory] = useState(loadHistory);
   const [dark,    setDark]    = useState(() => localStorage.getItem(DARK_KEY) !== "false");
@@ -245,7 +247,7 @@ export default function App() {
     setFeedback({ prompt: null, instructions: null, summary: null });
     setDiscoveredFlows([]); setSelectedFlowIds(new Set()); setMultiPrompts({});
     setDiscoverLoading(false); setGeneratingFlowId(null); setMultiLoading(false);
-    setChatSessionId(null);
+    setChatSessionId(null); setSelectedFlowDetail(null);
   }
 
   function handleFeedback(tab, value) {
@@ -548,28 +550,40 @@ export default function App() {
                       onAction={handleSummary} actionLabel="Summarize" disabled={files.length === 0 || loading} />
                 )}
 
-                {activeTab === "discover" && (discoveredFlows.length > 0 ? (
-                  <FlowDiscovery
-                    flows={discoveredFlows}
-                    selectedIds={selectedFlowIds}
-                    onToggle={(id) => setSelectedFlowIds((prev) => {
-                      const next = new Set(prev);
-                      next.has(id) ? next.delete(id) : next.add(id);
-                      return next;
-                    })}
-                    onSelectAll={() => setSelectedFlowIds(new Set(discoveredFlows.map((f) => f.id)))}
-                    onDeselectAll={() => setSelectedFlowIds(new Set())}
-                    onGenerate={handleGenerateSelected}
-                    generatingFlowId={generatingFlowId}
-                    loading={multiLoading}
-                  />
-                ) : (
-                  <EmptyTab icon={<Search size={30} />} title={discoverLoading ? "Discovering flows…" : "No flows discovered"}
-                    hint={discoverLoading ? "Analysing your documents for integration flows." : "Click Discover Flows to extract iFlow definitions from your documents."}
-                    onAction={discoverLoading ? undefined : handleDiscover}
-                    actionLabel="Discover Flows"
-                    disabled={files.length === 0 || discoverLoading} />
-                ))}
+                {activeTab === "discover" && (
+                  selectedFlowDetail ? (
+                    <FlowDetail
+                      flow={selectedFlowDetail}
+                      files={files}
+                      onBack={() => setSelectedFlowDetail(null)}
+                      toast={toast}
+                      sessionId={chatSessionId}
+                      onSessionReady={(id) => setChatSessionId(id)}
+                    />
+                  ) : discoveredFlows.length > 0 ? (
+                    <FlowDiscovery
+                      flows={discoveredFlows}
+                      selectedIds={selectedFlowIds}
+                      onToggle={(id) => setSelectedFlowIds((prev) => {
+                        const next = new Set(prev);
+                        next.has(id) ? next.delete(id) : next.add(id);
+                        return next;
+                      })}
+                      onSelectAll={() => setSelectedFlowIds(new Set(discoveredFlows.map((f) => f.id)))}
+                      onDeselectAll={() => setSelectedFlowIds(new Set())}
+                      onGenerate={handleGenerateSelected}
+                      onViewDetail={(flow) => setSelectedFlowDetail(flow)}
+                      generatingFlowId={generatingFlowId}
+                      loading={multiLoading}
+                    />
+                  ) : (
+                    <EmptyTab icon={<Search size={30} />} title={discoverLoading ? "Discovering flows…" : "No flows discovered"}
+                      hint={discoverLoading ? "Analysing your documents for integration flows." : "Click Discover Flows to extract iFlow definitions from your documents."}
+                      onAction={discoverLoading ? undefined : handleDiscover}
+                      actionLabel="Discover Flows"
+                      disabled={files.length === 0 || discoverLoading} />
+                  )
+                )}
 
                 {activeTab === "multiflow" && (
                   <MultiPromptOutput
