@@ -52,11 +52,14 @@ function highlight(text, query) {
 }
 
 function renderInline(text, query) {
-  const parts = text.split(/(`[^`]+`)/g);
+  const parts = text.split(/(\*\*[^*]+\*\*|\*[^*]+\*|`[^`]+`)/g);
   return parts.map((part, i) => {
-    if (part.startsWith("`") && part.endsWith("`") && part.length > 2) {
+    if (part.startsWith("**") && part.endsWith("**") && part.length > 4)
+      return <strong key={i}>{highlight(part.slice(2, -2), query)}</strong>;
+    if (part.startsWith("*") && part.endsWith("*") && part.length > 2)
+      return <em key={i}>{highlight(part.slice(1, -1), query)}</em>;
+    if (part.startsWith("`") && part.endsWith("`") && part.length > 2)
       return <code key={i} className={styles.inlineCode}>{part.slice(1, -1)}</code>;
-    }
     return <span key={i}>{highlight(part, query)}</span>;
   });
 }
