@@ -2,91 +2,83 @@
   list-style: none;
   display: flex;
   flex-direction: column;
-  margin: 1.25rem 0 0.25rem;
-  padding-left: 0;
+  gap: 0;
+  padding: 0;
   position: relative;
 }
 
-/* Connecting line */
 .list::before {
   content: '';
   position: absolute;
-  left: 13px;
-  top: 22px;
-  bottom: 22px;
+  left: 11px;
+  top: 20px;
+  bottom: 20px;
   width: 1px;
-  background: linear-gradient(to bottom, rgba(99, 62, 220, 0.2), rgba(6, 182, 212, 0.12));
+  background: var(--border);
   pointer-events: none;
 }
 
 .item {
   display: flex;
   align-items: center;
-  gap: 0.9rem;
-  padding: 0.42rem 0.5rem;
-  font-size: 0.88rem;
-  transition: all 0.2s ease;
+  gap: 0.65rem;
+  padding: 0.32rem 0.4rem;
+  font-size: 0.76rem;
+  transition: color 0.2s;
 }
 
-.item.pending { color: #94a3b8; }
-.item.active  { color: #6366f1; }
-.item.done    { color: #10b981; }
-.item.error   { color: #dc2626; }
+.item.pending { color: var(--text-3); }
+.item.active  { color: var(--accent); }
+.item.done    { color: var(--success); }
+.item.error   { color: var(--error); }
 
-/* Icon ring */
 .icon {
-  width: 28px;
-  height: 28px;
+  width: 22px;
+  height: 22px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.78rem;
+  font-size: 0.68rem;
   font-weight: 700;
   flex-shrink: 0;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
   z-index: 1;
   position: relative;
   transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
 }
-
 .item.active .icon {
-  border-color: rgba(99, 62, 220, 0.4);
-  background: rgba(99, 62, 220, 0.06);
-  box-shadow: 0 0 10px rgba(99, 62, 220, 0.2);
+  border-color: rgba(74,158,255,0.4);
+  background: var(--accent-dim);
+  box-shadow: 0 0 8px var(--accent-glow);
 }
-
 .item.done .icon {
-  border-color: rgba(16, 185, 129, 0.4);
-  background: rgba(16, 185, 129, 0.06);
+  border-color: rgba(29,201,154,0.4);
+  background: var(--success-dim);
 }
-
 .item.error .icon {
-  border-color: rgba(220, 38, 38, 0.35);
-  background: rgba(220, 38, 38, 0.05);
+  border-color: rgba(255,107,107,0.35);
+  background: var(--error-dim);
 }
 
 .dot {
-  width: 6px;
-  height: 6px;
+  width: 5px;
+  height: 5px;
   border-radius: 50%;
-  background: #cbd5e1;
+  background: var(--text-3);
   display: block;
 }
 
 .spinner {
   display: inline-block;
-  width: 12px;
-  height: 12px;
-  border: 1.8px solid rgba(99, 62, 220, 0.2);
-  border-top-color: #6366f1;
+  width: 10px;
+  height: 10px;
+  border: 1.5px solid var(--accent-dim);
+  border-top-color: var(--accent);
   border-radius: 50%;
-  animation: spin 0.75s linear infinite;
+  animation: spin 0.7s linear infinite;
 }
-
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 
 .message { line-height: 1.4; }

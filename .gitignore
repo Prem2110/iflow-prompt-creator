@@ -12,3 +12,6 @@ wheels/
 
 # Node
 frontend/node_modules/
+
+# Claude Code
+.claude/

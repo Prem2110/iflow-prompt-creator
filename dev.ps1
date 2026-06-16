@@ -20,7 +20,7 @@ foreach ($port in @(8000, 5173)) {
 
 Write-Host "Starting backend (http://localhost:8000)..."
 Start-Process -FilePath "powershell.exe" `
-    -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot'; uvicorn main:app --reload --port 8000" `
+    -ArgumentList "-NoExit", "-Command", "cd '$PSScriptRoot'; py -3 -m uvicorn main:app --reload --port 8000" `
     -WorkingDirectory $PSScriptRoot
 
 Start-Sleep -Seconds 2

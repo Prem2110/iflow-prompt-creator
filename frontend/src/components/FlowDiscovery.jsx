@@ -1,3 +1,4 @@
+import { ArrowRight } from "lucide-react";
 import styles from "./FlowDiscovery.module.css";
 import { badgeStyle } from "./dirBadge.js";
 
@@ -64,7 +65,7 @@ export default function FlowDiscovery({
                 </div>
                 <div className={styles.flowMeta}>
                   <span className={styles.metaChip}>{flow.source_entity || flow.source_system}</span>
-                  <span className={styles.metaArrow}>&rarr;</span>
+                  <span className={styles.metaArrow}><ArrowRight size={11} /></span>
                   <span className={styles.metaChip}>{flow.target_api}</span>
                 </div>
                 <p className={styles.flowDesc}>{flow.description}</p>

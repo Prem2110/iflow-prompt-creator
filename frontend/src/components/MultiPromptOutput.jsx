@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
 import PromptOutput from "./PromptOutput.jsx";
 import styles from "./MultiPromptOutput.module.css";
 import { badgeStyle } from "./dirBadge.js";
@@ -8,7 +9,7 @@ function FlowCard({ flow, prompt, isGenerating, toast }) {
   return (
     <div className={`${styles.card} ${isGenerating ? styles.cardGenerating : ""}`}>
       <div className={styles.cardHeader} onClick={() => setOpen((v) => !v)}>
-        <span className={styles.arrow}>{open ? "▾" : "▸"}</span>
+        <span className={styles.arrow}>{open ? <ChevronDown size={15} /> : <ChevronRight size={15} />}</span>
         <span className={styles.flowName}>{flow.name}</span>
         <span className={styles.dirBadge} style={badgeStyle(flow.direction)}>{flow.direction}</span>
         {isGenerating && <span className={styles.generatingLabel}>Generating&hellip;</span>}

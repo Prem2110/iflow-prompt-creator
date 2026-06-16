@@ -15,6 +15,7 @@ EMBEDDING_DIM = 3072  # text-embedding-3-large
 def _make_embedding_url() -> str:
     base = os.environ["AICORE_BASE_URL"].rstrip("/")
     dep  = os.environ["EMBEDDING_DEPLOYMENT_ID"].strip()
+    # SAP AI Core GenAI Hub — OpenAI-compatible embedding endpoint
     return f"{base}/inference/deployments/{dep}/embeddings"
 
 
@@ -25,16 +26,17 @@ async def embed_texts(texts: list[str]) -> np.ndarray:
 
     token = await _get_token()
     url   = _make_embedding_url()
+    resource_group = os.environ.get("EMBEDDING_RESOURCE_GROUP") or os.environ.get("AICORE_RESOURCE_GROUP", "default")
     headers = {
         "Authorization": f"Bearer {token}",
-        "AI-Resource-Group": os.environ.get("AICORE_RESOURCE_GROUP", "default"),
+        "AI-Resource-Group": resource_group,
         "Content-Type": "application/json",
     }
-    body = {
-        "input": texts,
-        "model": os.environ.get("EMBEDDING_MODEL_NAME", "text-embedding-3-large"),
-    }
+    logger.info("Embedding resource-group: %s", resource_group)
+    model_name = os.environ.get("EMBEDDING_MODEL_NAME", "text-embedding-3-large")
+    body = {"input": texts, "model": model_name}
 
+    logger.info("Embedding POST %s  model=%s  n=%d", url, model_name, len(texts))
     async with httpx.AsyncClient(timeout=60) as client:
         resp = await client.post(url, json=body, headers=headers)
 

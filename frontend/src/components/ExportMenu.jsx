@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { Download, ChevronDown } from "lucide-react";
 import { exportTxt, exportDocx, exportPdf } from "../utils/exportUtils";
 import styles from "./ExportMenu.module.css";
 
@@ -37,7 +38,7 @@ export default function ExportMenu({ content, filename, loading = false, toast }
         disabled={!content || loading || !!exporting}
         title="Export the generated content as a file"
       >
-        {exporting ? "Exporting…" : "Export ▾"}
+        {exporting ? "Exporting…" : <><Download size={13} /> Export <ChevronDown size={11} /></>}
       </button>
       {open && (
         <div className={styles.menu}>

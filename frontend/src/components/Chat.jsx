@@ -1,36 +1,133 @@
 import { useEffect, useRef, useState, useCallback } from "react";
+import { MessageSquare, Send, Check, X } from "lucide-react";
 import styles from "./Chat.module.css";
 
-export default function Chat({ files, sessionId, onSessionReady, toast }) {
-  const [messages, setMessages] = useState([]);
-  const [input, setInput] = useState("");
-  const [sending, setSending] = useState(false);
-  const [indexing, setIndexing] = useState(false);
-  const [indexedFiles, setIndexedFiles] = useState([]);
-  const [error, setError] = useState("");
-  const bottomRef = useRef(null);
-  const indexingRef = useRef(false);
+// ── Markdown renderer ─────────────────────────────────────────────────────────
 
-  // Auto-scroll to bottom on new messages
+function isTableRow(line) { return line.trim().startsWith("|") && line.trim().endsWith("|"); }
+function isSeparator(line) { return /^\|[\s\-:|]+\|$/.test(line.trim()); }
+function parseRow(line) {
+  return line.trim().slice(1, -1).split("|").map(c => c.trim());
+}
+
+function renderInline(text) {
+  const parts = text.split(/(\*\*[^*]+\*\*|`[^`]+`)/g);
+  return parts.map((p, i) => {
+    if (p.startsWith("**") && p.endsWith("**"))
+      return <strong key={i} className={styles.bubbleStrong}>{p.slice(2, -2)}</strong>;
+    if (p.startsWith("`") && p.endsWith("`") && p.length > 2)
+      return <code key={i} className={styles.bubbleCode}>{p.slice(1, -1)}</code>;
+    return p;
+  });
+}
+
+function renderBubble(text, streaming) {
+  const lines = text.split("\n");
+  const elements = [];
+  let i = 0;
+
+  while (i < lines.length) {
+    // Markdown table
+    if (isTableRow(lines[i]) && i + 1 < lines.length && isSeparator(lines[i + 1])) {
+      const headers = parseRow(lines[i]);
+      i += 2; // skip header + separator
+      const rows = [];
+      while (i < lines.length && isTableRow(lines[i])) {
+        rows.push(parseRow(lines[i]));
+        i++;
+      }
+      elements.push(
+        <table key={`tbl-${i}`} className={styles.mdTable}>
+          <thead>
+            <tr>{headers.map((h, j) => <th key={j}>{renderInline(h)}</th>)}</tr>
+          </thead>
+          <tbody>
+            {rows.map((row, j) => (
+              <tr key={j}>{row.map((cell, k) => <td key={k}>{renderInline(cell)}</td>)}</tr>
+            ))}
+          </tbody>
+        </table>
+      );
+      continue;
+    }
+
+    const line = lines[i];
+    const trimmed = line.trim();
+
+    if (trimmed === "") {
+      // skip blank lines between elements (handled by paragraph spacing)
+    } else {
+      elements.push(
+        <p key={i} className={styles.bubblePara}>{renderInline(line)}</p>
+      );
+    }
+    i++;
+  }
+
+  if (streaming) elements.push(<span key="cursor" className={styles.cursor}>▋</span>);
+  return elements;
+}
+
+// ── Step indicator ────────────────────────────────────────────────────────────
+
+function StepRow({ step }) {
+  return (
+    <div className={`${styles.indexStep} ${styles[step.state]}`}>
+      {step.state === "active" ? (
+        <span className={styles.stepSpinner} />
+      ) : step.state === "done" ? (
+        <Check size={10} className={styles.stepCheck} strokeWidth={2.5} />
+      ) : step.state === "error" ? (
+        <X size={10} className={styles.stepX} strokeWidth={2.5} />
+      ) : (
+        <span className={styles.stepDot} />
+      )}
+      <span>{step.message}</span>
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+
+export default function Chat({ files, sessionId, onSessionReady, toast }) {
+  const [messages,     setMessages]     = useState([]);
+  const [input,        setInput]        = useState("");
+  const [sending,      setSending]      = useState(false);
+  const [indexing,     setIndexing]     = useState(false);
+  const [indexSteps,   setIndexSteps]   = useState([]);
+  const [indexedFiles, setIndexedFiles] = useState([]);
+  const [error,        setError]        = useState("");
+  const bottomRef    = useRef(null);
+  const indexingRef  = useRef(false);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  function upsertStep(key, state, message) {
+    setIndexSteps(prev => {
+      const exists = prev.find(s => s.key === key);
+      if (exists) return prev.map(s => s.key === key ? { ...s, state, message } : s);
+      return [...prev, { key, state, message }];
+    });
+  }
 
   const handleIndex = useCallback(async () => {
     if (files.length === 0 || indexingRef.current) return;
     indexingRef.current = true;
     setIndexing(true);
+    setIndexSteps([]);
     setError("");
     setMessages([]);
 
     const form = new FormData();
-    files.forEach((f) => form.append("files", f));
+    files.forEach(f => form.append("files", f));
 
     try {
       const res = await fetch("/api/index", { method: "POST", body: form });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const reader = res.body.getReader();
+      const reader  = res.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
 
@@ -43,12 +140,15 @@ export default function Chat({ files, sessionId, onSessionReady, toast }) {
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           const event = JSON.parse(line.slice(6));
-          if (event.status === "done") {
+          if (event.status === "step")      upsertStep(event.key, "active", event.message);
+          else if (event.status === "step_done") upsertStep(event.key, "done", event.message);
+          else if (event.status === "done") {
             onSessionReady(event.session_id);
             setIndexedFiles(event.files || []);
             toast?.("Documents indexed — ready to chat!", "success");
           } else if (event.status === "error") {
             setError(event.message);
+            setIndexSteps(prev => prev.map(s => s.state === "active" ? { ...s, state: "error" } : s));
           }
         }
       }
@@ -60,24 +160,18 @@ export default function Chat({ files, sessionId, onSessionReady, toast }) {
     }
   }, [files, onSessionReady, toast]);
 
-  // Auto-index when files change and sessionId is cleared
   useEffect(() => {
-    if (files.length > 0 && !sessionId && !indexingRef.current) {
-      handleIndex();
-    }
+    if (files.length > 0 && !sessionId && !indexingRef.current) handleIndex();
   }, [files, sessionId, handleIndex]);
 
   async function handleSend() {
     if (!input.trim() || !sessionId || sending) return;
-
     const userMsg = { role: "user", content: input.trim() };
     const history = [...messages, userMsg];
     setMessages(history);
     setInput("");
     setSending(true);
     setError("");
-
-    // Add placeholder assistant message for streaming
     setMessages([...history, { role: "assistant", content: "", sources: [], streaming: true }]);
 
     try {
@@ -86,17 +180,15 @@ export default function Chat({ files, sessionId, onSessionReady, toast }) {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           session_id: sessionId,
-          messages: messages.filter((m) => !m.streaming).map(({ role, content }) => ({ role, content })),
+          messages: messages.filter(m => !m.streaming).map(({ role, content }) => ({ role, content })),
           message: userMsg.content,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
-      const reader = res.body.getReader();
+      const reader  = res.body.getReader();
       const decoder = new TextDecoder();
-      let buffer = "";
-      let assistantText = "";
-      let sources = [];
+      let buffer = "", assistantText = "", sources = [];
 
       while (true) {
         const { done, value } = await reader.read();
@@ -109,54 +201,63 @@ export default function Chat({ files, sessionId, onSessionReady, toast }) {
           const event = JSON.parse(line.slice(6));
           if (event.status === "chunk") {
             assistantText += event.text;
-            setMessages((prev) => {
+            setMessages(prev => {
               const next = [...prev];
               next[next.length - 1] = { role: "assistant", content: assistantText, sources, streaming: true };
               return next;
             });
           } else if (event.status === "done") {
             sources = event.sources || [];
-            setMessages((prev) => {
+            setMessages(prev => {
               const next = [...prev];
               next[next.length - 1] = { role: "assistant", content: assistantText, sources, streaming: false };
               return next;
             });
           } else if (event.status === "error") {
             setError(event.message);
-            setMessages((prev) => prev.slice(0, -1));
+            setMessages(prev => prev.slice(0, -1));
           }
         }
       }
     } catch (err) {
       setError(err.message);
-      setMessages((prev) => prev.slice(0, -1));
+      setMessages(prev => prev.slice(0, -1));
     } finally {
       setSending(false);
     }
   }
 
   function handleKeyDown(e) {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSend();
-    }
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSend(); }
   }
 
   const isReady = !!sessionId && !indexing;
 
   return (
-    <div className={styles.container}>
+    <div className={styles.container} style={{ height: "calc(100vh - 200px)", minHeight: 340 }}>
       {/* Status bar */}
       <div className={styles.statusBar}>
-        {indexing ? (
-          <span className={styles.statusIndexing}><span className={styles.spinner} /> Indexing documents…</span>
-        ) : sessionId ? (
-          <span className={styles.statusReady}>
-            <span className={styles.readyDot} /> {indexedFiles.length} document{indexedFiles.length !== 1 ? "s" : ""} indexed
-            <button className={styles.reindexBtn} onClick={handleIndex} title="Re-index documents">&#8635;</button>
-          </span>
-        ) : (
-          <span className={styles.statusEmpty}>No documents indexed yet</span>
+        <div className={styles.statusBarRow}>
+          {indexing ? (
+            <span className={styles.statusIndexing}>
+              <span className={styles.spinner} /> Indexing documents…
+            </span>
+          ) : sessionId ? (
+            <span className={styles.statusReady}>
+              <span className={styles.readyDot} />
+              {indexedFiles.length} document{indexedFiles.length !== 1 ? "s" : ""} indexed
+              <button className={styles.reindexBtn} onClick={handleIndex} title="Re-index documents">&#8635;</button>
+            </span>
+          ) : (
+            <span className={styles.statusEmpty}>No documents indexed yet</span>
+          )}
+        </div>
+
+        {/* Live step list during indexing */}
+        {indexSteps.length > 0 && (
+          <div className={styles.indexSteps}>
+            {indexSteps.map(step => <StepRow key={step.key} step={step} />)}
+          </div>
         )}
       </div>
 
@@ -164,6 +265,7 @@ export default function Chat({ files, sessionId, onSessionReady, toast }) {
       <div className={styles.messages}>
         {messages.length === 0 && isReady && (
           <div className={styles.emptyChat}>
+            <div className={styles.emptyChatIcon}><MessageSquare size={32} strokeWidth={1.5} /></div>
             <p className={styles.emptyChatTitle}>Ask anything about your documents</p>
             <p className={styles.emptyChatHint}>e.g. "What APIs are used in this integration?" or "Which flows need CSRF handling?"</p>
           </div>
@@ -171,14 +273,13 @@ export default function Chat({ files, sessionId, onSessionReady, toast }) {
         {messages.map((msg, i) => (
           <div key={i} className={`${styles.msg} ${msg.role === "user" ? styles.msgUser : styles.msgAssistant}`}>
             <div className={styles.bubble}>
-              {msg.content}
-              {msg.role === "assistant" && msg.streaming && <span className={styles.cursor}>&#9611;</span>}
+              {msg.role === "user"
+                ? msg.content
+                : renderBubble(msg.content, msg.streaming)}
             </div>
             {msg.role === "assistant" && msg.sources?.length > 0 && (
               <div className={styles.sources}>
-                {msg.sources.map((s, j) => (
-                  <span key={j} className={styles.sourceChip}>{s}</span>
-                ))}
+                {msg.sources.map((s, j) => <span key={j} className={styles.sourceChip}>{s}</span>)}
               </div>
             )}
           </div>
@@ -193,7 +294,7 @@ export default function Chat({ files, sessionId, onSessionReady, toast }) {
           className={styles.input}
           placeholder={isReady ? "Ask a question about your documents…" : "Waiting for documents to be indexed…"}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           disabled={!isReady || sending}
           rows={2}
@@ -203,7 +304,7 @@ export default function Chat({ files, sessionId, onSessionReady, toast }) {
           onClick={handleSend}
           disabled={!isReady || !input.trim() || sending}
         >
-          {sending ? <span className={styles.spinner} /> : "Send"}
+          {sending ? <span className={styles.spinner} /> : <Send size={15} />}
         </button>
       </div>
     </div>
