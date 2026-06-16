@@ -3,6 +3,7 @@ import {
   Sun, Moon, ChevronUp, ChevronDown, HelpCircle, History,
   Zap, ClipboardList, FileText, Search,
   X, RotateCcw, MessageSquare, ThumbsUp, ThumbsDown, Star,
+  PanelLeftClose, PanelLeftOpen, Upload,
 } from "lucide-react";
 import FileUpload from "./components/FileUpload.jsx";
 import PromptOutput from "./components/PromptOutput.jsx";
@@ -82,8 +83,9 @@ export default function App() {
   const [chatOpen,            setChatOpen]            = useState(false);
   const [chatFlow,            setChatFlow]            = useState(null);
 
-  const [history, setHistory] = useState(loadHistory);
-  const [dark,    setDark]    = useState(() => localStorage.getItem(DARK_KEY) !== "false");
+  const [history,      setHistory]      = useState(loadHistory);
+  const [dark,         setDark]         = useState(() => localStorage.getItem(DARK_KEY) !== "false");
+  const [sidebarOpen,  setSidebarOpen]  = useState(true);
 
   const { toasts, toast, remove: removeToast } = useToast();
 
@@ -356,91 +358,132 @@ export default function App() {
       <div className={styles.workspace}>
 
         {/* ── Sidebar ── */}
-        <aside className={styles.sidebar}>
-          {/* Upload */}
-          <div className={styles.sideSection}>
-            <div className={styles.sideSectionLabel}>Documents</div>
-            <FileUpload files={files} onChange={setFiles} disabled={loading} />
-          </div>
+        <aside className={`${styles.sidebar} ${!sidebarOpen ? styles.sidebarCollapsed : ""}`}>
 
-          {/* Actions */}
-          <div className={styles.sideSection}>
-            <div className={styles.sideSectionLabel}>Generate</div>
-            <div className={styles.actionsList}>
-              <button
-                className={`${styles.actionBtn} ${isGenerating ? styles.actionBtnActive : styles.actionBtnPrimary}`}
-                onClick={handleGenerate}
-                disabled={files.length === 0 || loading}
-              >
-                <span className={styles.actionIcon}><Zap size={14} /></span>
-                <span className={styles.actionLabel}>
-                  Generate Prompt
-                  {isGenerating && <span className={styles.actionSub}>Generating…</span>}
-                </span>
-                {isGenerating && <span className={styles.spinner} />}
-              </button>
-
-              <button
-                className={`${styles.actionBtn} ${isInstructing ? styles.actionBtnActive : ""}`}
-                onClick={handleInstructions}
-                disabled={files.length === 0 || loading}
-              >
-                <span className={styles.actionIcon}><ClipboardList size={14} /></span>
-                <span className={styles.actionLabel}>
-                  Manual Instructions
-                  {isInstructing && <span className={styles.actionSub}>Building guide…</span>}
-                </span>
-                {isInstructing && <span className={styles.spinner} />}
-              </button>
-
-              <button
-                className={`${styles.actionBtn} ${isSummarising ? styles.actionBtnActive : ""}`}
-                onClick={handleSummary}
-                disabled={files.length === 0 || loading}
-              >
-                <span className={styles.actionIcon}><FileText size={14} /></span>
-                <span className={styles.actionLabel}>
-                  Summarize
-                  {isSummarising && <span className={styles.actionSub}>Summarising…</span>}
-                </span>
-                {isSummarising && <span className={styles.spinner} />}
-              </button>
-
-              <button
-                className={`${styles.actionBtn} ${discoverLoading ? styles.actionBtnActive : ""}`}
-                onClick={handleDiscover}
-                disabled={files.length === 0 || loading || discoverLoading}
-              >
-                <span className={styles.actionIcon}><Search size={14} /></span>
-                <span className={styles.actionLabel}>
-                  Discover Flows
-                  {discoverLoading && <span className={styles.actionSub}>Discovering…</span>}
-                </span>
-                {discoverLoading && <span className={styles.spinner} />}
-              </button>
-            </div>
-
-            {(files.length > 0 || hasOutput) && (
-              <button className={styles.resetBtn} onClick={handleReset} disabled={loading && !abortRef.current}>
-                {loading ? <><X size={12} /> Cancel</> : <><RotateCcw size={12} /> Reset</>}
-              </button>
-            )}
-          </div>
-
-          {/* Sidebar status: error + progress */}
-          {error && <div className={styles.sideError}>{error}</div>}
-          {steps.length > 0 && (
-            <div className={styles.sideStatus}>
-              <ProgressSteps steps={steps} />
-            </div>
-          )}
-
-          {/* Feedback — pinned to sidebar bottom */}
-          <div className={styles.sideFooter}>
-            <button className={styles.feedbackSideBtn} onClick={() => setShowFeedback(true)}>
-              <Star size={13} /> Give Feedback
+          {/* Toggle button row — always visible */}
+          <div className={styles.sideToggleRow}>
+            {sidebarOpen && <span className={styles.sideToggleLabel}>Workspace</span>}
+            <button
+              className={styles.sideToggleBtn}
+              onClick={() => setSidebarOpen(v => !v)}
+              title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            >
+              {sidebarOpen ? <PanelLeftClose size={14} /> : <PanelLeftOpen size={14} />}
             </button>
           </div>
+
+          {sidebarOpen ? (
+            <>
+              {/* Upload */}
+              <div className={styles.sideSection}>
+                <div className={styles.sideSectionLabel}>Documents</div>
+                <FileUpload files={files} onChange={setFiles} disabled={loading} />
+              </div>
+
+              {/* Actions */}
+              <div className={styles.sideSection}>
+                <div className={styles.sideSectionLabel}>Generate</div>
+                <div className={styles.actionsList}>
+                  <button
+                    className={`${styles.actionBtn} ${isGenerating ? styles.actionBtnActive : styles.actionBtnPrimary}`}
+                    onClick={handleGenerate}
+                    disabled={files.length === 0 || loading}
+                  >
+                    <span className={styles.actionIcon}><Zap size={14} /></span>
+                    <span className={styles.actionLabel}>
+                      Generate Prompt
+                      {isGenerating && <span className={styles.actionSub}>Generating…</span>}
+                    </span>
+                    {isGenerating && <span className={styles.spinner} />}
+                  </button>
+
+                  <button
+                    className={`${styles.actionBtn} ${isInstructing ? styles.actionBtnActive : ""}`}
+                    onClick={handleInstructions}
+                    disabled={files.length === 0 || loading}
+                  >
+                    <span className={styles.actionIcon}><ClipboardList size={14} /></span>
+                    <span className={styles.actionLabel}>
+                      Manual Instructions
+                      {isInstructing && <span className={styles.actionSub}>Building guide…</span>}
+                    </span>
+                    {isInstructing && <span className={styles.spinner} />}
+                  </button>
+
+                  <button
+                    className={`${styles.actionBtn} ${isSummarising ? styles.actionBtnActive : ""}`}
+                    onClick={handleSummary}
+                    disabled={files.length === 0 || loading}
+                  >
+                    <span className={styles.actionIcon}><FileText size={14} /></span>
+                    <span className={styles.actionLabel}>
+                      Summarize
+                      {isSummarising && <span className={styles.actionSub}>Summarising…</span>}
+                    </span>
+                    {isSummarising && <span className={styles.spinner} />}
+                  </button>
+
+                  <button
+                    className={`${styles.actionBtn} ${discoverLoading ? styles.actionBtnActive : ""}`}
+                    onClick={handleDiscover}
+                    disabled={files.length === 0 || loading || discoverLoading}
+                  >
+                    <span className={styles.actionIcon}><Search size={14} /></span>
+                    <span className={styles.actionLabel}>
+                      Discover Flows
+                      {discoverLoading && <span className={styles.actionSub}>Discovering…</span>}
+                    </span>
+                    {discoverLoading && <span className={styles.spinner} />}
+                  </button>
+                </div>
+
+                {(files.length > 0 || hasOutput) && (
+                  <button className={styles.resetBtn} onClick={handleReset} disabled={loading && !abortRef.current}>
+                    {loading ? <><X size={12} /> Cancel</> : <><RotateCcw size={12} /> Reset</>}
+                  </button>
+                )}
+              </div>
+
+              {/* Sidebar status: error + progress */}
+              {error && <div className={styles.sideError}>{error}</div>}
+              {steps.length > 0 && (
+                <div className={styles.sideStatus}>
+                  <ProgressSteps steps={steps} />
+                </div>
+              )}
+
+              {/* Feedback — pinned to sidebar bottom */}
+              <div className={styles.sideFooter}>
+                <button className={styles.feedbackSideBtn} onClick={() => setShowFeedback(true)}>
+                  <Star size={13} /> Give Feedback
+                </button>
+              </div>
+            </>
+          ) : (
+            /* Icon strip when collapsed */
+            <div className={styles.iconStrip}>
+              <button className={styles.iconStripBtn} onClick={() => setSidebarOpen(true)} title="Upload files">
+                <Upload size={15} />
+              </button>
+              <div className={styles.iconStripDivider} />
+              <button className={styles.iconStripBtn} onClick={handleGenerate} disabled={files.length === 0 || loading} title="Generate Prompt">
+                {isGenerating ? <span className={styles.spinnerSm} /> : <Zap size={15} />}
+              </button>
+              <button className={styles.iconStripBtn} onClick={handleInstructions} disabled={files.length === 0 || loading} title="Manual Instructions">
+                {isInstructing ? <span className={styles.spinnerSm} /> : <ClipboardList size={15} />}
+              </button>
+              <button className={styles.iconStripBtn} onClick={handleSummary} disabled={files.length === 0 || loading} title="Summarize">
+                {isSummarising ? <span className={styles.spinnerSm} /> : <FileText size={15} />}
+              </button>
+              <button className={styles.iconStripBtn} onClick={handleDiscover} disabled={files.length === 0 || loading || discoverLoading} title="Discover Flows">
+                {discoverLoading ? <span className={styles.spinnerSm} /> : <Search size={15} />}
+              </button>
+              <div className={styles.iconStripDivider} />
+              <button className={styles.iconStripBtn} onClick={() => setShowFeedback(true)} title="Give Feedback">
+                <Star size={15} />
+              </button>
+            </div>
+          )}
 
         </aside>
 

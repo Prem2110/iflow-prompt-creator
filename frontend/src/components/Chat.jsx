@@ -44,8 +44,16 @@ export default function Chat({ files, sessionId, onSessionReady, toast, flowCont
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
+  const wasIndexingRef = useRef(false);
   useEffect(() => {
-    if (indexing) setStatusOpen(true);
+    if (indexing) {
+      setStatusOpen(true);
+      wasIndexingRef.current = true;
+    } else if (wasIndexingRef.current) {
+      wasIndexingRef.current = false;
+      const t = setTimeout(() => setStatusOpen(false), 1500);
+      return () => clearTimeout(t);
+    }
   }, [indexing]);
 
   function upsertStep(key, state, message) {
