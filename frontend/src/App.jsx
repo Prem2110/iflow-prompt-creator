@@ -634,6 +634,7 @@ export default function App() {
               onSessionReady={(id) => setChatSessionId(id)}
               toast={toast}
               flowContext={chatFlow}
+              onAddFiles={(newFiles) => setFiles(prev => [...prev, ...newFiles])}
             />
           </div>
         </div>

@@ -347,6 +347,42 @@
 @keyframes fadeUp  { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:translateY(0);} }
 @keyframes pulse   { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.4;transform:scale(0.75);} }
 
+.addFilesBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--accent);
+  background: var(--accent-dim);
+  border: 1px solid rgba(74,158,255,0.25);
+  border-radius: 4px;
+  padding: 0.1rem 0.45rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s;
+  font-family: 'Lexend', sans-serif;
+}
+.addFilesBtn:hover {
+  background: rgba(74,158,255,0.18);
+  border-color: var(--accent);
+}
+
+.systemMsg {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  align-self: center;
+  font-size: 0.68rem;
+  color: var(--text-3);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  padding: 0.2rem 0.75rem;
+  margin: 0.15rem 0;
+  font-style: italic;
+}
+
 .flowContextChip {
   display: inline-flex;
   align-items: center;

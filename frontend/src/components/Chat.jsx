@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, useCallback } from "react";
-import { MessageSquare, Send, Check, X } from "lucide-react";
+import { MessageSquare, Send, Check, X, Paperclip } from "lucide-react";
 import { makeRenderBubble } from "../utils/renderMarkdown.jsx";
 import styles from "./Chat.module.css";
 
@@ -26,16 +26,18 @@ function StepRow({ step }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function Chat({ files, sessionId, onSessionReady, toast, flowContext }) {
+export default function Chat({ files, sessionId, onSessionReady, toast, flowContext, onAddFiles }) {
   const [messages,     setMessages]     = useState([]);
   const [input,        setInput]        = useState("");
   const [sending,      setSending]      = useState(false);
   const [indexing,     setIndexing]     = useState(false);
   const [indexSteps,   setIndexSteps]   = useState([]);
   const [indexedFiles, setIndexedFiles] = useState([]);
+  const [extraFiles,   setExtraFiles]   = useState([]);
   const [error,        setError]        = useState("");
   const bottomRef    = useRef(null);
   const indexingRef  = useRef(false);
+  const addFileRef   = useRef(null);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -49,16 +51,16 @@ export default function Chat({ files, sessionId, onSessionReady, toast, flowCont
     });
   }
 
-  const handleIndex = useCallback(async () => {
-    if (files.length === 0 || indexingRef.current) return;
+  const handleIndex = useCallback(async (filesToIndex, keepMessages = false) => {
+    if (filesToIndex.length === 0 || indexingRef.current) return;
     indexingRef.current = true;
     setIndexing(true);
     setIndexSteps([]);
     setError("");
-    setMessages([]);
+    if (!keepMessages) setMessages([]);
 
     const form = new FormData();
-    files.forEach(f => form.append("files", f));
+    filesToIndex.forEach(f => form.append("files", f));
 
     try {
       const res = await fetch("/api/index", { method: "POST", body: form });
@@ -77,12 +79,12 @@ export default function Chat({ files, sessionId, onSessionReady, toast, flowCont
         for (const line of lines) {
           if (!line.startsWith("data: ")) continue;
           const event = JSON.parse(line.slice(6));
-          if (event.status === "step")      upsertStep(event.key, "active", event.message);
+          if (event.status === "step")           upsertStep(event.key, "active", event.message);
           else if (event.status === "step_done") upsertStep(event.key, "done", event.message);
           else if (event.status === "done") {
             onSessionReady(event.session_id);
             setIndexedFiles(event.files || []);
-            toast?.("Documents indexed — ready to chat!", "success");
+            toast?.(keepMessages ? "Context updated with new files!" : "Documents indexed — ready to chat!", "success");
           } else if (event.status === "error") {
             setError(event.message);
             setIndexSteps(prev => prev.map(s => s.state === "active" ? { ...s, state: "error" } : s));
@@ -95,11 +97,25 @@ export default function Chat({ files, sessionId, onSessionReady, toast, flowCont
       setIndexing(false);
       indexingRef.current = false;
     }
-  }, [files, onSessionReady, toast]);
+  }, [onSessionReady, toast]);
 
   useEffect(() => {
-    if (files.length > 0 && !sessionId && !indexingRef.current) handleIndex();
+    if (files.length > 0 && !sessionId && !indexingRef.current) handleIndex(files, false);
   }, [files, sessionId, handleIndex]);
+
+  async function handleAddFiles(e) {
+    const newFiles = Array.from(e.target.files);
+    if (!newFiles.length) return;
+    e.target.value = "";
+    onAddFiles?.(newFiles);
+    const merged = [...files, ...extraFiles, ...newFiles];
+    setExtraFiles(prev => [...prev, ...newFiles]);
+    setMessages(prev => [
+      ...prev,
+      { role: "system", content: `Added ${newFiles.length} file${newFiles.length > 1 ? "s" : ""}: ${newFiles.map(f => f.name).join(", ")}` },
+    ]);
+    await handleIndex(merged, true);
+  }
 
   async function handleSend() {
     if (!input.trim() || !sessionId || sending) return;
@@ -188,7 +204,18 @@ export default function Chat({ files, sessionId, onSessionReady, toast, flowCont
             <span className={styles.statusReady}>
               <span className={styles.readyDot} />
               {indexedFiles.length} document{indexedFiles.length !== 1 ? "s" : ""} indexed
-              <button className={styles.reindexBtn} onClick={handleIndex} title="Re-index documents">&#8635;</button>
+              <label className={styles.addFilesBtn} title="Add more files to context">
+                <Paperclip size={10} /> Add files
+                <input
+                  ref={addFileRef}
+                  type="file"
+                  multiple
+                  hidden
+                  onChange={handleAddFiles}
+                  accept=".pdf,.docx,.pptx,.xlsx,.csv,.txt,.json,.yaml,.yml,.xml,.wsdl,.png,.jpg,.jpeg"
+                />
+              </label>
+              <button className={styles.reindexBtn} onClick={() => handleIndex([...files, ...extraFiles], true)} title="Re-index documents">&#8635;</button>
             </span>
           ) : (
             <span className={styles.statusEmpty}>No documents indexed yet</span>
@@ -221,18 +248,24 @@ export default function Chat({ files, sessionId, onSessionReady, toast, flowCont
           </div>
         )}
         {messages.map((msg, i) => (
-          <div key={i} className={`${styles.msg} ${msg.role === "user" ? styles.msgUser : styles.msgAssistant}`}>
-            <div className={styles.bubble}>
-              {msg.role === "user"
-                ? msg.content
-                : renderBubble(msg.content, msg.streaming)}
+          msg.role === "system" ? (
+            <div key={i} className={styles.systemMsg}>
+              <Paperclip size={10} /> {msg.content}
             </div>
-            {msg.role === "assistant" && msg.sources?.length > 0 && (
-              <div className={styles.sources}>
-                {msg.sources.map((s, j) => <span key={j} className={styles.sourceChip}>{s}</span>)}
+          ) : (
+            <div key={i} className={`${styles.msg} ${msg.role === "user" ? styles.msgUser : styles.msgAssistant}`}>
+              <div className={styles.bubble}>
+                {msg.role === "user"
+                  ? msg.content
+                  : renderBubble(msg.content, msg.streaming)}
               </div>
-            )}
-          </div>
+              {msg.role === "assistant" && msg.sources?.length > 0 && (
+                <div className={styles.sources}>
+                  {msg.sources.map((s, j) => <span key={j} className={styles.sourceChip}>{s}</span>)}
+                </div>
+              )}
+            </div>
+          )
         ))}
         {error && <div className={styles.chatError}>{error}</div>}
         <div ref={bottomRef} />
