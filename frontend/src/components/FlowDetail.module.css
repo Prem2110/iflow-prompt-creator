@@ -4,6 +4,41 @@
   height: 100%;
   gap: 0;
   animation: fadeUp 0.2s ease;
+  min-height: 0;
+}
+
+/* ── Split layout ────────────────────────────────────────────────────────── */
+.splitBody {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 0;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.leftPane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  overflow: hidden;
+  padding-right: 1rem;
+}
+
+.rightPane {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--border);
+  padding-left: 1rem;
+  overflow: hidden;
+}
+
+/* ── Flow meta row ───────────────────────────────────────────────────────── */
+.flowMeta {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
 }
 
 /* ── Header ─────────────────────────────────────────────────────────────── */
@@ -208,6 +243,30 @@
   color: var(--success, #1dc99a);
 }
 
+/* ── Right pane chat header ──────────────────────────────────────────────── */
+.chatHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-2);
+  font-family: 'Lexend', sans-serif;
+  flex-shrink: 0;
+}
+
+.chatReadyDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--success, #1dc99a);
+  box-shadow: 0 0 5px var(--success, #1dc99a);
+  animation: pulse 2s ease-in-out infinite;
+  margin-left: auto;
+}
+
 /* ── Chat container ─────────────────────────────────────────────────────── */
 .chatContainer {
   flex: 1;
@@ -220,9 +279,9 @@
 
 .chatStatus {
   font-size: 0.72rem;
-  padding: 0.3rem 0.6rem;
-  border-radius: 6px;
-  margin-bottom: 0.5rem;
+  padding: 0.3rem 0;
+  margin-top: 0.4rem;
+  margin-bottom: 0.3rem;
   flex-shrink: 0;
 }
 .chatStatusIndexing {
@@ -442,3 +501,4 @@
 
 @keyframes spin    { to { transform: rotate(360deg); } }
 @keyframes fadeUp  { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes pulse   { 0%,100% { opacity:1; transform:scale(1); } 50% { opacity:0.4; transform:scale(0.75); } }
