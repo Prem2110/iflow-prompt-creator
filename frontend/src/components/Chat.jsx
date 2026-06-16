@@ -221,6 +221,16 @@ export default function Chat({ files, sessionId, onSessionReady, toast, flowCont
           )}
         </div>
 
+        {/* Hidden file input — always in DOM so ref works regardless of ribbon state */}
+        <input
+          ref={addFileRef}
+          type="file"
+          multiple
+          hidden
+          onChange={handleAddFiles}
+          accept=".pdf,.docx,.pptx,.xlsx,.csv,.txt,.json,.yaml,.yml,.xml,.wsdl,.png,.jpg,.jpeg"
+        />
+
         {/* Collapsible details */}
         {statusOpen && (
           <div className={styles.statusDetails}>
@@ -233,17 +243,6 @@ export default function Chat({ files, sessionId, onSessionReady, toast, flowCont
                 <span className={styles.statusReady}>
                   <span className={styles.readyDot} />
                   {indexedFiles.length} document{indexedFiles.length !== 1 ? "s" : ""} indexed
-                  <label className={styles.addFilesBtn} title="Add more files to context">
-                    <Paperclip size={10} /> Add files
-                    <input
-                      ref={addFileRef}
-                      type="file"
-                      multiple
-                      hidden
-                      onChange={handleAddFiles}
-                      accept=".pdf,.docx,.pptx,.xlsx,.csv,.txt,.json,.yaml,.yml,.xml,.wsdl,.png,.jpg,.jpeg"
-                    />
-                  </label>
                   <button className={styles.reindexBtn} onClick={e => { e.stopPropagation(); handleIndex([...files, ...extraFiles], true); }} title="Re-index documents">&#8635;</button>
                 </span>
               ) : (
@@ -314,13 +313,23 @@ export default function Chat({ files, sessionId, onSessionReady, toast, flowCont
           disabled={!isReady || sending}
           rows={2}
         />
-        <button
-          className={styles.sendBtn}
-          onClick={handleSend}
-          disabled={!isReady || !input.trim() || sending}
-        >
+        <div className={styles.inputActions}>
+          <button
+            className={styles.attachBtn}
+            onClick={() => addFileRef.current?.click()}
+            disabled={!isReady || sending}
+            title="Add files to context"
+          >
+            <Paperclip size={14} />
+          </button>
+          <button
+            className={styles.sendBtn}
+            onClick={handleSend}
+            disabled={!isReady || !input.trim() || sending}
+          >
           {sending ? <span className={styles.spinner} /> : <Send size={15} />}
-        </button>
+          </button>
+        </div>
       </div>
     </div>
   );

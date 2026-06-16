@@ -355,6 +355,34 @@
   flex-shrink: 0;
 }
 
+.inputActions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  align-self: flex-end;
+}
+
+.attachBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+.attachBtn:hover:not(:disabled) {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-dim);
+}
+.attachBtn:disabled { opacity: 0.35; cursor: not-allowed; }
+
 .input {
   flex: 1;
   background: var(--surface);
