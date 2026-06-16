@@ -26,7 +26,7 @@ function StepRow({ step }) {
 
 // ── Main component ────────────────────────────────────────────────────────────
 
-export default function Chat({ files, sessionId, onSessionReady, toast }) {
+export default function Chat({ files, sessionId, onSessionReady, toast, flowContext }) {
   const [messages,     setMessages]     = useState([]);
   const [input,        setInput]        = useState("");
   const [sending,      setSending]      = useState(false);
@@ -103,7 +103,12 @@ export default function Chat({ files, sessionId, onSessionReady, toast }) {
 
   async function handleSend() {
     if (!input.trim() || !sessionId || sending) return;
-    const userMsg = { role: "user", content: input.trim() };
+    const displayText = input.trim();
+    const apiText = flowContext
+      ? `[Regarding iFlow: "${flowContext.name}" | ${flowContext.direction} | ${flowContext.source_system || flowContext.source_entity} → ${flowContext.target_api || flowContext.target_system}]\n\n${displayText}`
+      : displayText;
+
+    const userMsg = { role: "user", content: displayText };
     const history = [...messages, userMsg];
     setMessages(history);
     setInput("");
@@ -118,7 +123,7 @@ export default function Chat({ files, sessionId, onSessionReady, toast }) {
         body: JSON.stringify({
           session_id: sessionId,
           messages: messages.filter(m => !m.streaming).map(({ role, content }) => ({ role, content })),
-          message: userMsg.content,
+          message: apiText,
         }),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
@@ -171,7 +176,7 @@ export default function Chat({ files, sessionId, onSessionReady, toast }) {
   const isReady = !!sessionId && !indexing;
 
   return (
-    <div className={styles.container} style={{ height: "calc(100vh - 200px)", minHeight: 340 }}>
+    <div className={styles.container}>
       {/* Status bar */}
       <div className={styles.statusBar}>
         <div className={styles.statusBarRow}>
@@ -189,6 +194,14 @@ export default function Chat({ files, sessionId, onSessionReady, toast }) {
             <span className={styles.statusEmpty}>No documents indexed yet</span>
           )}
         </div>
+
+        {flowContext && isReady && (
+          <div className={styles.statusBarRow}>
+            <span className={styles.flowContextChip}>
+              Flow: {flowContext.name}
+            </span>
+          </div>
+        )}
 
         {/* Live step list during indexing */}
         {indexSteps.length > 0 && (
@@ -229,7 +242,11 @@ export default function Chat({ files, sessionId, onSessionReady, toast }) {
       <div className={styles.inputRow}>
         <textarea
           className={styles.input}
-          placeholder={isReady ? "Ask a question about your documents…" : "Waiting for documents to be indexed…"}
+          placeholder={isReady
+            ? flowContext
+              ? `Ask about ${flowContext.name}…`
+              : "Ask a question about your documents…"
+            : "Waiting for documents to be indexed…"}
           value={input}
           onChange={e => setInput(e.target.value)}
           onKeyDown={handleKeyDown}

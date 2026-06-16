@@ -789,3 +789,129 @@
   .workspace { flex-direction: column; }
   .sidebar { width: 100%; height: auto; max-height: 40vh; border-right: none; border-bottom: 1px solid var(--border); }
 }
+
+/* ─── Chat toggle button (topbar) ────────────────────────────────────────── */
+.chatToggleBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.22rem 0.65rem;
+  border: 1.5px solid rgba(29,201,154,0.35);
+  border-radius: 20px;
+  background: var(--success-dim, rgba(29,201,154,0.08));
+  color: var(--success, #1dc99a);
+  font-size: 0.73rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.15s;
+  font-family: 'Lexend', sans-serif;
+  position: relative;
+}
+.chatToggleBtn:hover {
+  background: rgba(29,201,154,0.15);
+  border-color: var(--success);
+  box-shadow: 0 0 10px rgba(29,201,154,0.18);
+}
+.chatToggleBtnActive {
+  background: rgba(29,201,154,0.15);
+  border-color: var(--success);
+  box-shadow: 0 0 10px rgba(29,201,154,0.2);
+}
+
+.chatActiveDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 5px var(--success);
+  flex-shrink: 0;
+}
+
+/* ─── Chat drawer ────────────────────────────────────────────────────────── */
+.chatDrawer {
+  width: 0;
+  min-width: 0;
+  overflow: hidden;
+  background: var(--surface);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  transition: width 0.28s ease, border-left-color 0.28s ease;
+  border-left: 1px solid transparent;
+}
+
+.chatDrawerOpen {
+  width: 400px;
+  border-left-color: var(--border);
+}
+
+.drawerHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.6rem 0.85rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  min-width: 400px;
+}
+
+.drawerTitle {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: var(--text-2);
+  font-family: 'Lexend', sans-serif;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.drawerClearFlow {
+  font-size: 0.65rem;
+  font-weight: 600;
+  color: var(--text-3);
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 0.1rem 0.4rem;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s;
+  font-family: 'Lexend', sans-serif;
+}
+.drawerClearFlow:hover {
+  color: var(--error);
+  border-color: rgba(255,107,107,0.4);
+  background: var(--error-dim);
+}
+
+.drawerCloseBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: none;
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-3);
+  cursor: pointer;
+  transition: all 0.12s;
+  flex-shrink: 0;
+}
+.drawerCloseBtn:hover {
+  background: var(--surface-2);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+
+.drawerBody {
+  flex: 1;
+  overflow: hidden;
+  min-height: 0;
+  min-width: 400px;
+  padding: 0.6rem 0.85rem;
+}

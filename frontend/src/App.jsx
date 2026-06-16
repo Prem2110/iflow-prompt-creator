@@ -79,6 +79,8 @@ export default function App() {
   const [chatSessionId,       setChatSessionId]       = useState(null);
   const [showFeedback,        setShowFeedback]        = useState(false);
   const [selectedFlowDetail,  setSelectedFlowDetail]  = useState(null);
+  const [chatOpen,            setChatOpen]            = useState(false);
+  const [chatFlow,            setChatFlow]            = useState(null);
 
   const [history, setHistory] = useState(loadHistory);
   const [dark,    setDark]    = useState(() => localStorage.getItem(DARK_KEY) !== "false");
@@ -330,6 +332,17 @@ export default function App() {
               <History size={13} /> History {showHistory ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
             </button>
           )}
+          {files.length > 0 && (
+            <button
+              className={`${styles.chatToggleBtn} ${chatOpen ? styles.chatToggleBtnActive : ""}`}
+              onClick={() => { setChatOpen(v => !v); if (!chatOpen) setChatFlow(null); }}
+              title="Toggle chat"
+            >
+              <MessageSquare size={13} />
+              Chat
+              {chatSessionId && <span className={styles.chatActiveDot} />}
+            </button>
+          )}
           <button className={styles.iconBtn} onClick={() => setDark((d) => !d)} title="Toggle theme">
             {dark ? <Sun size={15} /> : <Moon size={15} />}
           </button>
@@ -473,16 +486,6 @@ export default function App() {
                     {ts && <span className={styles.tabTs}>{ts}</span>}
                   </button>
                 ))}
-                {/* Chat tab — pinned right */}
-                {files.length > 0 && (
-                  <button
-                    className={`${styles.tab} ${styles.chatTab} ${activeTab === "chat" ? styles.activeTab : ""}`}
-                    onClick={() => setActiveTab("chat")}
-                  >
-                    <MessageSquare size={13} /> Chat
-                    {chatSessionId && <span className={styles.tabDot} />}
-                  </button>
-                )}
               </div>
 
               {/* Tab action bar — only for output tabs, not chat/multiflow */}
@@ -555,10 +558,9 @@ export default function App() {
                     <FlowDetail
                       flow={selectedFlowDetail}
                       files={files}
-                      onBack={() => setSelectedFlowDetail(null)}
+                      onBack={() => { setSelectedFlowDetail(null); setChatFlow(null); }}
                       toast={toast}
-                      sessionId={chatSessionId}
-                      onSessionReady={(id) => setChatSessionId(id)}
+                      onOpenChat={(flow) => { setChatFlow(flow); setChatOpen(true); }}
                     />
                   ) : discoveredFlows.length > 0 ? (
                     <FlowDiscovery
@@ -595,14 +597,6 @@ export default function App() {
                   />
                 )}
 
-                {activeTab === "chat" && (
-                  <Chat
-                    files={files}
-                    sessionId={chatSessionId}
-                    onSessionReady={(id) => setChatSessionId(id)}
-                    toast={toast}
-                  />
-                )}
               </div>
             </>
           ) : (
@@ -616,6 +610,34 @@ export default function App() {
             </div>
           )}
         </div>
+
+        {/* ── Chat drawer ── */}
+        <div className={`${styles.chatDrawer} ${chatOpen ? styles.chatDrawerOpen : ""}`}>
+          <div className={styles.drawerHeader}>
+            <div className={styles.drawerTitle}>
+              <MessageSquare size={13} />
+              {chatFlow ? chatFlow.name : "Document Chat"}
+            </div>
+            {chatFlow && (
+              <button className={styles.drawerClearFlow} onClick={() => setChatFlow(null)} title="Clear flow context">
+                ✕ flow
+              </button>
+            )}
+            <button className={styles.drawerCloseBtn} onClick={() => setChatOpen(false)}>
+              <X size={14} />
+            </button>
+          </div>
+          <div className={styles.drawerBody}>
+            <Chat
+              files={files}
+              sessionId={chatSessionId}
+              onSessionReady={(id) => setChatSessionId(id)}
+              toast={toast}
+              flowContext={chatFlow}
+            />
+          </div>
+        </div>
+
       </div>
     </div>
   );

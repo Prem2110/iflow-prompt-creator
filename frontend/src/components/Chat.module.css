@@ -346,3 +346,19 @@
 @keyframes blink   { 0%,100%{opacity:1;} 50%{opacity:0;} }
 @keyframes fadeUp  { from{opacity:0;transform:translateY(6px);} to{opacity:1;transform:translateY(0);} }
 @keyframes pulse   { 0%,100%{opacity:1;transform:scale(1);} 50%{opacity:0.4;transform:scale(0.75);} }
+
+.flowContextChip {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--success, #1dc99a);
+  background: var(--success-dim, rgba(29,201,154,0.08));
+  border: 1px solid rgba(29,201,154,0.25);
+  border-radius: 4px;
+  padding: 0.1rem 0.5rem;
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
