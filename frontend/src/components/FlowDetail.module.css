@@ -9,8 +9,7 @@
 
 /* ── Split layout ────────────────────────────────────────────────────────── */
 .splitBody {
-  display: grid;
-  grid-template-columns: 1fr 340px;
+  display: flex;
   gap: 0;
   flex: 1;
   min-height: 0;
@@ -23,15 +22,27 @@
   min-height: 0;
   overflow: hidden;
   padding-right: 1rem;
+  flex: 1;
+  max-width: 100%;
+  transition: flex 0.28s ease, max-width 0.28s ease, opacity 0.22s ease, padding-right 0.28s ease;
+}
+
+.leftPaneCollapsed {
+  flex: 0 0 0;
+  max-width: 0;
+  padding-right: 0;
+  opacity: 0;
+  pointer-events: none;
 }
 
 .rightPane {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-left: 1px solid var(--border);
-  padding-left: 1rem;
+  flex: 1;
   overflow: hidden;
+  padding-left: 1rem;
+  transition: border-left 0.28s ease, padding-left 0.28s ease;
 }
 
 /* ── Flow meta row ───────────────────────────────────────────────────────── */
@@ -255,6 +266,26 @@
   color: var(--text-2);
   font-family: 'Lexend', sans-serif;
   flex-shrink: 0;
+}
+
+.panelToggleBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: none;
+  border: 1px solid var(--border);
+  color: var(--text-3);
+  cursor: pointer;
+  transition: background 0.12s, color 0.12s, border-color 0.12s;
+  flex-shrink: 0;
+}
+.panelToggleBtn:hover {
+  background: var(--accent-dim);
+  border-color: rgba(74,158,255,0.3);
+  color: var(--accent);
 }
 
 .chatReadyDot {

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { ArrowLeft, Zap, ClipboardList, FileText, MessageSquare, RotateCcw, ArrowRight, Send, Check } from "lucide-react";
+import { ArrowLeft, Zap, ClipboardList, FileText, MessageSquare, RotateCcw, ArrowRight, Send, Check, PanelLeftOpen, PanelLeftClose } from "lucide-react";
 import PromptOutput from "./PromptOutput.jsx";
 import InstructionsOutput from "./InstructionsOutput.jsx";
 import { badgeStyle } from "./dirBadge.js";
@@ -15,11 +15,12 @@ const GEN_MODES = [
 ];
 
 export default function FlowDetail({ flow, files, onBack, toast, sessionId, onSessionReady }) {
-  const [activeMode,  setActiveMode]  = useState("prompt");
-  const [outputs,     setOutputs]     = useState({ prompt: "", instructions: "", summary: "" });
-  const [loading,     setLoading]     = useState(false);
-  const [loadingMode, setLoadingMode] = useState(null);
-  const [error,       setError]       = useState("");
+  const [activeMode,    setActiveMode]    = useState("prompt");
+  const [outputs,       setOutputs]       = useState({ prompt: "", instructions: "", summary: "" });
+  const [loading,       setLoading]       = useState(false);
+  const [loadingMode,   setLoadingMode]   = useState(null);
+  const [error,         setError]         = useState("");
+  const [leftCollapsed, setLeftCollapsed] = useState(true);
 
   const [chatMessages,  setChatMessages]  = useState([]);
   const [chatInput,     setChatInput]     = useState("");
@@ -85,6 +86,7 @@ export default function FlowDetail({ flow, files, onBack, toast, sessionId, onSe
 
   async function generate(mode) {
     if (loading) return;
+    setLeftCollapsed(false); // auto-expand on generate
     setLoading(true); setLoadingMode(mode); setActiveMode(mode);
     setError(""); setOutputs(prev => ({ ...prev, [mode]: "" }));
 
@@ -203,7 +205,7 @@ export default function FlowDetail({ flow, files, onBack, toast, sessionId, onSe
       <div className={styles.splitBody}>
 
         {/* ── LEFT: generation tabs + output ── */}
-        <div className={styles.leftPane}>
+        <div className={`${styles.leftPane} ${leftCollapsed ? styles.leftPaneCollapsed : ""}`}>
           <div className={styles.toolbar}>
             <div className={styles.modeTabs}>
               {GEN_MODES.map(({ key, label, Icon }) => (
@@ -260,6 +262,13 @@ export default function FlowDetail({ flow, files, onBack, toast, sessionId, onSe
         {/* ── RIGHT: persistent chat panel ── */}
         <div className={styles.rightPane}>
           <div className={styles.chatHeader}>
+            <button
+              className={styles.panelToggleBtn}
+              onClick={() => setLeftCollapsed(v => !v)}
+              title={leftCollapsed ? "Show generation panel" : "Hide generation panel"}
+            >
+              {leftCollapsed ? <PanelLeftOpen size={14} /> : <PanelLeftClose size={14} />}
+            </button>
             <MessageSquare size={13} />
             <span>Chat about this flow</span>
             {chatReady && <span className={styles.chatReadyDot} />}
