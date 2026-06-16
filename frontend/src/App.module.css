@@ -841,7 +841,7 @@
 }
 
 .chatDrawerOpen {
-  width: 400px;
+  width: 460px;
   border-left-color: var(--border);
 }
 
@@ -852,7 +852,7 @@
   padding: 0.6rem 0.85rem;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  min-width: 400px;
+  min-width: 460px;
 }
 
 .drawerTitle {
@@ -912,6 +912,6 @@
   flex: 1;
   overflow: hidden;
   min-height: 0;
-  min-width: 400px;
+  min-width: 460px;
   padding: 0.6rem 0.85rem;
 }
