@@ -318,6 +318,50 @@
   background: rgba(255,255,255,0.02);
 }
 
+.mdHr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0.65rem 0;
+}
+.mdH1 { font-size: 0.95rem; font-weight: 700; color: var(--text);   margin: 0.6rem 0 0.25rem; }
+.mdH2 { font-size: 0.86rem; font-weight: 700; color: var(--text);   margin: 0.5rem 0 0.2rem; }
+.mdH3 { font-size: 0.79rem; font-weight: 700; color: var(--text-2); margin: 0.45rem 0 0.18rem; }
+.mdBlockquote {
+  border-left: 3px solid var(--accent);
+  padding: 0.2rem 0.6rem;
+  margin: 0.35rem 0;
+  color: var(--text-2);
+  background: var(--accent-dim);
+  border-radius: 0 4px 4px 0;
+  font-size: 0.78rem;
+}
+.mdBlockquote p { margin: 0; }
+.mdUl { margin: 0.25rem 0 0.25rem 1.1rem; padding: 0; list-style: disc; }
+.mdOl { margin: 0.25rem 0 0.25rem 1.1rem; padding: 0; list-style: decimal; }
+.mdLi { margin-bottom: 0.15rem; font-size: 0.78rem; line-height: 1.55; }
+.codeBlock {
+  background: var(--surface-2, rgba(255,255,255,0.04));
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.6rem 0.8rem;
+  margin: 0.35rem 0;
+  overflow-x: auto;
+  font-family: 'Consolas', 'Menlo', monospace;
+  font-size: 0.74rem;
+  line-height: 1.55;
+  white-space: pre;
+  color: var(--text);
+}
+.codeLang {
+  display: block;
+  font-size: 0.63rem;
+  font-weight: 700;
+  color: var(--text-3);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 0.35rem;
+}
+
 .bubbleCode {
   font-family: 'Consolas', 'Menlo', monospace;
   font-size: 0.78em;
