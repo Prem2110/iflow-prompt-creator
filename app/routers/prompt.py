@@ -1,5 +1,6 @@
 import json
 import logging
+import os
 from pathlib import Path
 from typing import AsyncGenerator, List
 
@@ -8,6 +9,7 @@ from fastapi.responses import StreamingResponse
 
 from app.services.aicore import chat_complete as _chat_complete
 from app.services.extractor import extract
+from app.services.hubsearch import enrich_from_hub
 from app.services.validator import validate
 
 logger = logging.getLogger(__name__)
@@ -325,6 +327,24 @@ async def _stream(files: List[UploadFile], flow=None) -> AsyncGenerator[str, Non
 
     user_content = _build_user_content(extracted)
 
+    # SAP Business Hub enrichment
+    if os.environ.get("SAP_HUB_API_KEY", "").strip():
+        _plain = " ".join(e.get("content", "") for e in extracted if e["kind"] == "text")
+        if _plain.strip():
+            yield _event("step", key="hub", message="Searching SAP Business Hub for relevant packages…")
+            try:
+                _hub_ref = await enrich_from_hub(_plain)
+                if _hub_ref:
+                    yield _event("step_done", key="hub", message="SAP Hub packages found — enriching context")
+                    user_content = ([{"type": "text", "text": _hub_ref}] + list(user_content)
+                                    if isinstance(user_content, list)
+                                    else _hub_ref + "\n\n" + user_content)
+                else:
+                    yield _event("step_done", key="hub", message="No matching Hub packages for this scenario")
+            except Exception as _hub_exc:
+                logger.warning("Hub enrichment failed: %s", _hub_exc)
+                yield _event("step_done", key="hub", message="Hub search skipped")
+
     if flow:
         keys = ["name", "direction", "source_system", "source_entity", "target_system", "target_api", "trigger", "description"]
         focus = _FLOW_FOCUS_PREFIX.format(**{k: flow.get(k, "") for k in keys})
@@ -417,8 +437,12 @@ FORMATTING RULES:
 - Never skip a click. Every navigation path must be complete.
 - CODE FENCE RULE: Every piece of code MUST be wrapped in a fenced code block with the correct
   language identifier. Use ```groovy for Groovy scripts, ```xml for XML/XSLT/XSD payloads,
-  ```json for JSON bodies, ```jsonata for JSONata expressions, ```bash or ```curl for cURL commands,
+  ```json for JSON bodies, ```jsonata for JSONata expressions, ```bash for cURL commands,
   ```xpath for XPath expressions, ```sql for SQL. Never output raw code as plain text.
+  NEVER use a bare ``` fence with no language tag — always include the language identifier.
+- HEADING-BEFORE-CODE RULE: A heading (####, ###, ##) must always come BEFORE its code block,
+  never after it. The order must be: heading → bullet description → code block. Do not place a
+  code block above the heading that labels it.
 - SCRIPTS RULE: Wherever the iFlow requires a Script step, XSLT mapping, Groovy expression,
   or XPath/JSONPath value — provide the COMPLETE, RUNNABLE code inline in the relevant step
   inside a properly fenced code block. Do not say "write a script here" — write the actual script.
@@ -467,7 +491,7 @@ full code, XSLT steps with full template, Receiver channel, error handling, etc.
 - Headers: X-CSRF-Token: Fetch, ...
 
 #### cURL
-```
+```bash
 curl -X GET "..." -H "X-CSRF-Token: Fetch" -u "user:password" -v
 ```
 
@@ -480,7 +504,7 @@ curl -X GET "..." -H "X-CSRF-Token: Fetch" -u "user:password" -v
 - Body: [realistic JSON/XML sample]
 
 #### cURL
-```
+```bash
 curl -X POST "..." -H "Content-Type: application/json" -d '{"field":"value"}' -u "user:password"
 ```
 
@@ -548,6 +572,24 @@ async def _stream_instructions(files: List[UploadFile], flow=None) -> AsyncGener
             if part.get("type") == "text" and SUFFIX.strip() in part["text"]:
                 part["text"] = part["text"].replace(SUFFIX.strip(), _INSTRUCTIONS_SUFFIX.strip())
                 break
+
+    # SAP Business Hub enrichment
+    if os.environ.get("SAP_HUB_API_KEY", "").strip():
+        _plain = " ".join(e.get("content", "") for e in extracted if e["kind"] == "text")
+        if _plain.strip():
+            yield _event("step", key="hub", message="Searching SAP Business Hub for relevant packages…")
+            try:
+                _hub_ref = await enrich_from_hub(_plain)
+                if _hub_ref:
+                    yield _event("step_done", key="hub", message="SAP Hub packages found — enriching context")
+                    user_content = ([{"type": "text", "text": _hub_ref}] + list(user_content)
+                                    if isinstance(user_content, list)
+                                    else _hub_ref + "\n\n" + user_content)
+                else:
+                    yield _event("step_done", key="hub", message="No matching Hub packages for this scenario")
+            except Exception as _hub_exc:
+                logger.warning("Hub enrichment failed: %s", _hub_exc)
+                yield _event("step_done", key="hub", message="Hub search skipped")
 
     # Inject flow focus when targeting a specific iFlow
     if flow:
@@ -692,6 +734,24 @@ async def _stream_summary(files: List[UploadFile], flow=None) -> AsyncGenerator[
                 part["text"] = part["text"].replace(SUFFIX.strip(), _SUMMARY_SUFFIX.strip())
                 break
 
+    # SAP Business Hub enrichment
+    if os.environ.get("SAP_HUB_API_KEY", "").strip():
+        _plain = " ".join(e.get("content", "") for e in extracted if e["kind"] == "text")
+        if _plain.strip():
+            yield _event("step", key="hub", message="Searching SAP Business Hub for relevant packages…")
+            try:
+                _hub_ref = await enrich_from_hub(_plain)
+                if _hub_ref:
+                    yield _event("step_done", key="hub", message="SAP Hub packages found — enriching context")
+                    user_content = ([{"type": "text", "text": _hub_ref}] + list(user_content)
+                                    if isinstance(user_content, list)
+                                    else _hub_ref + "\n\n" + user_content)
+                else:
+                    yield _event("step_done", key="hub", message="No matching Hub packages for this scenario")
+            except Exception as _hub_exc:
+                logger.warning("Hub enrichment failed: %s", _hub_exc)
+                yield _event("step_done", key="hub", message="Hub search skipped")
+
     # Inject flow focus when targeting a specific iFlow
     if flow:
         keys = ["name", "direction", "source_system", "source_entity", "target_system", "target_api", "trigger", "description"]
@@ -775,6 +835,24 @@ async def _stream_discover(files: List[UploadFile]) -> AsyncGenerator[str, None]
             if part.get("type") == "text" and SUFFIX.strip() in part["text"]:
                 part["text"] = part["text"].replace(SUFFIX.strip(), _DISCOVER_SUFFIX.strip())
                 break
+
+    # SAP Business Hub enrichment
+    if os.environ.get("SAP_HUB_API_KEY", "").strip():
+        _plain = " ".join(e.get("content", "") for e in extracted if e["kind"] == "text")
+        if _plain.strip():
+            yield _event("step", key="hub", message="Searching SAP Business Hub for relevant packages…")
+            try:
+                _hub_ref = await enrich_from_hub(_plain)
+                if _hub_ref:
+                    yield _event("step_done", key="hub", message="SAP Hub packages found — enriching context")
+                    user_content = ([{"type": "text", "text": _hub_ref}] + list(user_content)
+                                    if isinstance(user_content, list)
+                                    else _hub_ref + "\n\n" + user_content)
+                else:
+                    yield _event("step_done", key="hub", message="No matching Hub packages for this scenario")
+            except Exception as _hub_exc:
+                logger.warning("Hub enrichment failed: %s", _hub_exc)
+                yield _event("step_done", key="hub", message="Hub search skipped")
 
     yield _event("step", key="discover", message="Analysing document for integration interfaces…")
     try:

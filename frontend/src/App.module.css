@@ -844,6 +844,33 @@
   font-size: 0.79rem;
 }
 
+/* ─── Loading panel (main content area) ──────────────────────────────── */
+.loadingPanel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 3.5rem 2rem;
+  animation: fadeUp 0.25s ease;
+}
+
+.loadingSpinRing {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2.5px solid var(--accent-dim);
+  border-top-color: var(--accent);
+  animation: spin 0.75s linear infinite;
+  opacity: 0.8;
+}
+
+.loadingLabel {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: var(--text-2);
+  font-family: 'Lexend', sans-serif;
+}
+
 /* ─── Empty tab state ─────────────────────────────────────────────────── */
 .emptyTab {
   display: flex;
@@ -982,12 +1009,12 @@
 }
 
 .chatDrawerOpen {
-  width: 460px;
+  width: 492px;
   border-left-color: var(--border);
 }
 
 .chatDrawerOpen.chatDrawerWide {
-  width: 575px;
+  width: 615px;
 }
 
 .drawerHeader {
@@ -997,9 +1024,9 @@
   padding: 0.6rem 0.85rem;
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  min-width: 460px;
+  min-width: 492px;
 }
-.chatDrawerWide .drawerHeader { min-width: 575px; }
+.chatDrawerWide .drawerHeader { min-width: 615px; }
 
 .drawerTitle {
   display: flex;
@@ -1058,7 +1085,7 @@
   flex: 1;
   overflow: hidden;
   min-height: 0;
-  min-width: 460px;
+  min-width: 492px;
   padding: 0.6rem 0.85rem;
 }
-.chatDrawerWide .drawerBody { min-width: 575px; }
+.chatDrawerWide .drawerBody { min-width: 615px; }

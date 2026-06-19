@@ -23,6 +23,8 @@ import logging
 import os
 import threading
 
+import httpx
+
 logger = logging.getLogger(__name__)
 
 # Read once at import time; module reloads pick up changes automatically on hot-reload.
@@ -39,9 +41,8 @@ def _post(call_type: str, metadata: str) -> None:
     if not _BASE_URL:
         return
     try:
-        import requests  # lazy import so startup isn't slowed if requests is absent
         url = f"{_BASE_URL}/log-metadata/"
-        resp = requests.post(
+        resp = httpx.post(
             url,
             params={
                 "app_id":      _APP_ID,
@@ -52,7 +53,7 @@ def _post(call_type: str, metadata: str) -> None:
             json={"metadata": metadata},
             timeout=10,
         )
-        if not resp.ok:
+        if not resp.is_success:
             logger.warning(
                 "LLM monitor POST failed [%s %s]: %s",
                 call_type, resp.status_code, resp.text[:300],

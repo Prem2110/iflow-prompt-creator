@@ -15,8 +15,8 @@ html, body, #root {
   --surface:       #0C0F18;
   --surface-2:     #111520;
   --surface-3:     #171C2A;
-  --border:        rgba(255,255,255,0.07);
-  --border-strong: rgba(255,255,255,0.13);
+  --border:        rgba(255,255,255,0.09);
+  --border-strong: rgba(255,255,255,0.16);
   --accent:        #4A9EFF;
   --accent-dim:    rgba(74,158,255,0.10);
   --accent-glow:   rgba(74,158,255,0.22);
@@ -26,9 +26,14 @@ html, body, #root {
   --success-dim:   rgba(29,201,154,0.11);
   --error:         #FF6B6B;
   --error-dim:     rgba(255,107,107,0.11);
-  --text:          #CDD5E0;
-  --text-2:        #7A8799;
-  --text-3:        #3D4758;
+  --text:          #D4DCE8;
+  --text-2:        #8FA2B6;
+  --text-3:        #627088;
+  /* Alias tokens used by component CSS */
+  --card-bg:       #0F1320;
+  --card-border:   rgba(255,255,255,0.09);
+  --text-muted:    #8FA2B6;
+  --text-subtle:   #627088;
   color-scheme: dark;
 }
 
@@ -51,6 +56,11 @@ html, body, #root {
   --text:          #111827;
   --text-2:        #4B5563;
   --text-3:        #9CA3AF;
+  /* Alias tokens used by component CSS */
+  --card-bg:       #FFFFFF;
+  --card-border:   rgba(0,0,0,0.08);
+  --text-muted:    #4B5563;
+  --text-subtle:   #9CA3AF;
   color-scheme: light;
 }
 

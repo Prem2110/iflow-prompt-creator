@@ -35,6 +35,16 @@ function saveHistory(entry, prev) {
   return next;
 }
 
+function LoadingPanel({ steps, label }) {
+  return (
+    <div className={styles.loadingPanel}>
+      <div className={styles.loadingSpinRing} />
+      <p className={styles.loadingLabel}>{label}</p>
+      {steps.length > 0 && <ProgressSteps steps={steps} />}
+    </div>
+  );
+}
+
 function EmptyTab({ icon, title, hint, onAction, actionLabel, disabled }) {
   return (
     <div className={styles.emptyTab}>
@@ -380,7 +390,7 @@ export default function App() {
                 <FileUpload files={files} onChange={setFiles} disabled={loading} />
               </div>
 
-              {/* Actions */}
+              {/* Generate actions */}
               <div className={styles.sideSection}>
                 <div className={styles.sideSectionLabel}>Generate</div>
                 <div className={styles.actionsList}>
@@ -392,7 +402,9 @@ export default function App() {
                     <span className={styles.actionIcon}><Zap size={14} /></span>
                     <span className={styles.actionLabel}>
                       Generate Prompt
-                      {isGenerating && <span className={styles.actionSub}>Generating…</span>}
+                      <span className={styles.actionSub}>
+                        {isGenerating ? "Generating…" : "Ready-to-paste CPI iFlow prompt"}
+                      </span>
                     </span>
                     {isGenerating && <span className={styles.spinner} />}
                   </button>
@@ -404,8 +416,10 @@ export default function App() {
                   >
                     <span className={styles.actionIcon}><ClipboardList size={14} /></span>
                     <span className={styles.actionLabel}>
-                      Manual Instructions
-                      {isInstructing && <span className={styles.actionSub}>Building guide…</span>}
+                      Build Guide
+                      <span className={styles.actionSub}>
+                        {isInstructing ? "Building guide…" : "Step-by-step + Groovy scripts"}
+                      </span>
                     </span>
                     {isInstructing && <span className={styles.spinner} />}
                   </button>
@@ -418,22 +432,11 @@ export default function App() {
                     <span className={styles.actionIcon}><FileText size={14} /></span>
                     <span className={styles.actionLabel}>
                       Summarize
-                      {isSummarising && <span className={styles.actionSub}>Summarising…</span>}
+                      <span className={styles.actionSub}>
+                        {isSummarising ? "Summarising…" : "Purpose, adapters & key config"}
+                      </span>
                     </span>
                     {isSummarising && <span className={styles.spinner} />}
-                  </button>
-
-                  <button
-                    className={`${styles.actionBtn} ${discoverLoading ? styles.actionBtnActive : ""}`}
-                    onClick={handleDiscover}
-                    disabled={files.length === 0 || loading || discoverLoading}
-                  >
-                    <span className={styles.actionIcon}><Search size={14} /></span>
-                    <span className={styles.actionLabel}>
-                      Discover Flows
-                      {discoverLoading && <span className={styles.actionSub}>Discovering…</span>}
-                    </span>
-                    {discoverLoading && <span className={styles.spinner} />}
                   </button>
                 </div>
 
@@ -444,13 +447,29 @@ export default function App() {
                 )}
               </div>
 
-              {/* Sidebar status: error + progress */}
-              {error && <div className={styles.sideError}>{error}</div>}
-              {steps.length > 0 && (
-                <div className={styles.sideStatus}>
-                  <ProgressSteps steps={steps} />
+              {/* Analyse actions */}
+              <div className={styles.sideSection}>
+                <div className={styles.sideSectionLabel}>Analyse</div>
+                <div className={styles.actionsList}>
+                  <button
+                    className={`${styles.actionBtn} ${discoverLoading ? styles.actionBtnActive : ""}`}
+                    onClick={handleDiscover}
+                    disabled={files.length === 0 || loading || discoverLoading}
+                  >
+                    <span className={styles.actionIcon}><Search size={14} /></span>
+                    <span className={styles.actionLabel}>
+                      Discover Flows
+                      <span className={styles.actionSub}>
+                        {discoverLoading ? "Discovering…" : "Extract all iFlows from your docs"}
+                      </span>
+                    </span>
+                    {discoverLoading && <span className={styles.spinner} />}
+                  </button>
                 </div>
-              )}
+              </div>
+
+              {/* Sidebar error */}
+              {error && <div className={styles.sideError}>{error}</div>}
 
               {/* Feedback — pinned to sidebar bottom */}
               <div className={styles.sideFooter}>
@@ -469,7 +488,7 @@ export default function App() {
               <button className={styles.iconStripBtn} onClick={handleGenerate} disabled={files.length === 0 || loading} title="Generate Prompt">
                 {isGenerating ? <span className={styles.spinnerSm} /> : <Zap size={15} />}
               </button>
-              <button className={styles.iconStripBtn} onClick={handleInstructions} disabled={files.length === 0 || loading} title="Manual Instructions">
+              <button className={styles.iconStripBtn} onClick={handleInstructions} disabled={files.length === 0 || loading} title="Build Guide">
                 {isInstructing ? <span className={styles.spinnerSm} /> : <ClipboardList size={15} />}
               </button>
               <button className={styles.iconStripBtn} onClick={handleSummary} disabled={files.length === 0 || loading} title="Summarize">
@@ -564,28 +583,43 @@ export default function App() {
 
               {/* Content */}
               <div className={styles.content}>
-                {activeTab === "prompt" && (prompt
-                  ? <>
+                {activeTab === "prompt" && (
+                  isGenerating && !prompt ? (
+                    <LoadingPanel steps={steps} label="Generating your CPI iFlow prompt…" />
+                  ) : prompt ? (
+                    <>
                       {warning && <div className={styles.warningBanner}><strong>Review needed:</strong> {warning}</div>}
                       <PromptOutput prompt={prompt} loading={isGenerating} toast={toast} />
                     </>
-                  : <EmptyTab icon={<Zap size={30} />} title="No prompt yet"
-                      hint="Click Generate Prompt to create a ready-to-use SAP CPI iFlow configuration prompt."
+                  ) : (
+                    <EmptyTab icon={<Zap size={30} />} title="No prompt yet"
+                      hint="Click Generate Prompt to create a ready-to-paste SAP CPI iFlow configuration prompt."
                       onAction={handleGenerate} actionLabel="Generate Prompt" disabled={files.length === 0 || loading} />
+                  )
                 )}
 
-                {activeTab === "instructions" && (instructions
-                  ? <InstructionsOutput instructions={instructions} loading={isInstructing} toast={toast} />
-                  : <EmptyTab icon={<ClipboardList size={30} />} title="No instructions yet"
-                      hint="Click Manual Instructions for a step-by-step guide with Groovy scripts and Postman tests."
-                      onAction={handleInstructions} actionLabel="Generate Instructions" disabled={files.length === 0 || loading} />
+                {activeTab === "instructions" && (
+                  isInstructing && !instructions ? (
+                    <LoadingPanel steps={steps} label="Building your step-by-step guide…" />
+                  ) : instructions ? (
+                    <InstructionsOutput instructions={instructions} loading={isInstructing} toast={toast} />
+                  ) : (
+                    <EmptyTab icon={<ClipboardList size={30} />} title="No guide yet"
+                      hint="Click Build Guide for a step-by-step walkthrough with Groovy scripts and Postman tests."
+                      onAction={handleInstructions} actionLabel="Build Guide" disabled={files.length === 0 || loading} />
+                  )
                 )}
 
-                {activeTab === "summary" && (summary
-                  ? <InstructionsOutput instructions={summary} loading={isSummarising} label="iFlow Summary" exportFilename="iflow-summary" toast={toast} />
-                  : <EmptyTab icon={<FileText size={30} />} title="No summary yet"
+                {activeTab === "summary" && (
+                  isSummarising && !summary ? (
+                    <LoadingPanel steps={steps} label="Summarising your integration…" />
+                  ) : summary ? (
+                    <InstructionsOutput instructions={summary} loading={isSummarising} label="iFlow Summary" exportFilename="iflow-summary" toast={toast} />
+                  ) : (
+                    <EmptyTab icon={<FileText size={30} />} title="No summary yet"
                       hint="Click Summarize for a concise overview — purpose, topology, adapters, and key config."
                       onAction={handleSummary} actionLabel="Summarize" disabled={files.length === 0 || loading} />
+                  )
                 )}
 
                 {activeTab === "discover" && (
@@ -613,12 +647,14 @@ export default function App() {
                       generatingFlowId={generatingFlowId}
                       loading={multiLoading}
                     />
+                  ) : discoverLoading ? (
+                    <LoadingPanel steps={steps} label="Discovering integration flows in your documents…" />
                   ) : (
-                    <EmptyTab icon={<Search size={30} />} title={discoverLoading ? "Discovering flows…" : "No flows discovered"}
-                      hint={discoverLoading ? "Analysing your documents for integration flows." : "Click Discover Flows to extract iFlow definitions from your documents."}
-                      onAction={discoverLoading ? undefined : handleDiscover}
+                    <EmptyTab icon={<Search size={30} />} title="No flows discovered"
+                      hint="Click Discover Flows to extract all iFlow definitions from your documents."
+                      onAction={handleDiscover}
                       actionLabel="Discover Flows"
-                      disabled={files.length === 0 || discoverLoading} />
+                      disabled={files.length === 0} />
                   )
                 )}
 

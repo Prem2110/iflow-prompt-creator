@@ -340,7 +340,7 @@
 
 .table tbody tr:last-child td { border-bottom: none; }
 
-.table tbody tr:nth-child(even) td { background: #f8fafc; }
+.table tbody tr:nth-child(even) td { background: var(--surface-2, #f8fafc); }
 
 .spacer { height: 0.5rem; }
 
