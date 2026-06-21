@@ -2,7 +2,7 @@ import { useState } from "react";
 import { ArrowLeft, Zap, ClipboardList, FileText, MessageSquare, RotateCcw, ArrowRight, GitBranch } from "lucide-react";
 import PromptOutput from "./PromptOutput.jsx";
 import InstructionsOutput from "./InstructionsOutput.jsx";
-import DiagramOutput from "./DiagramOutput.jsx";
+import VisualisePanel from "./VisualisePanel.jsx";
 import { badgeStyle } from "./dirBadge.js";
 import styles from "./FlowDetail.module.css";
 
@@ -10,15 +10,15 @@ const GEN_MODES = [
   { key: "prompt",       label: "Prompt",       Icon: Zap,           endpoint: "/api/generate-flow-prompt" },
   { key: "instructions", label: "Instructions", Icon: ClipboardList, endpoint: "/api/generate-flow-instructions" },
   { key: "summary",      label: "Summary",      Icon: FileText,      endpoint: "/api/generate-flow-summary" },
-  { key: "diagram",      label: "Visualise",    Icon: GitBranch,     endpoint: "/api/generate-flow-diagram" },
 ];
 
 export default function FlowDetail({ flow, files, onBack, toast, onOpenChat }) {
-  const [activeMode,  setActiveMode]  = useState("prompt");
-  const [outputs,     setOutputs]     = useState({ prompt: "", instructions: "", summary: "", diagram: "" });
-  const [loading,     setLoading]     = useState(false);
-  const [loadingMode, setLoadingMode] = useState(null);
-  const [error,       setError]       = useState("");
+  const [activeMode,    setActiveMode]    = useState("prompt");
+  const [outputs,       setOutputs]       = useState({ prompt: "", instructions: "", summary: "" });
+  const [loading,       setLoading]       = useState(false);
+  const [loadingMode,   setLoadingMode]   = useState(null);
+  const [error,         setError]         = useState("");
+  const [showVisualise, setShowVisualise] = useState(false);
 
   async function generate(mode) {
     if (loading) return;
@@ -92,6 +92,12 @@ export default function FlowDetail({ flow, files, onBack, toast, onOpenChat }) {
               {outputs[key] && <span className={styles.tabDot} />}
             </button>
           ))}
+          <button
+            className={styles.modeTab}
+            onClick={() => setShowVisualise(true)}
+          >
+            <GitBranch size={12} /> Visualise
+          </button>
         </div>
         <div className={styles.toolbarRight}>
           <button className={styles.chatFlowBtn} onClick={() => onOpenChat?.(flow)}>
@@ -115,8 +121,6 @@ export default function FlowDetail({ flow, files, onBack, toast, onOpenChat }) {
         {currentOutput ? (
           activeMode === "prompt"
             ? <PromptOutput prompt={currentOutput} loading={isGenerating} toast={toast} />
-            : activeMode === "diagram"
-            ? <DiagramOutput diagram={currentOutput} loading={isGenerating} toast={toast} />
             : <InstructionsOutput
                 instructions={currentOutput}
                 loading={isGenerating}
@@ -138,6 +142,15 @@ export default function FlowDetail({ flow, files, onBack, toast, onOpenChat }) {
           </div>
         )}
       </div>
+
+      {showVisualise && (
+        <VisualisePanel
+          flow={flow}
+          files={files}
+          onClose={() => setShowVisualise(false)}
+          toast={toast}
+        />
+      )}
 
     </div>
   );

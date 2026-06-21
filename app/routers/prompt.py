@@ -1028,3 +1028,301 @@ async def generate_flow_prompt(
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )
+
+
+# ── Shared analysis helper ────────────────────────────────────────────────────
+
+async def _stream_analysis(
+    files: List[UploadFile],
+    flow: dict,
+    system_prompt: str,
+    task_suffix: str,
+    extra_prefix: str = "",
+    max_tokens: int = 2048,
+) -> AsyncGenerator[str, None]:
+    for f in files:
+        ext = Path(f.filename or "").suffix.lower()
+        if ext not in _ALLOWED_EXTENSIONS:
+            yield _event("error", message=f"Unsupported file type '{ext}' for '{f.filename}'")
+            return
+
+    file_data_list: list[tuple[UploadFile, bytes]] = []
+    for f in files:
+        data = await f.read()
+        if len(data) > _MAX_FILE_SIZE:
+            yield _event("error", message=f"File '{f.filename}' exceeds {_MAX_FILE_SIZE // (1024*1024)} MB limit")
+            return
+        file_data_list.append((f, data))
+
+    try:
+        extracted = [item for f, data in file_data_list for item in await extract(f, data)]
+    except Exception as exc:
+        yield _event("error", message=f"File extraction failed: {exc}")
+        return
+
+    user_content = _build_user_content(extracted)
+    if isinstance(user_content, str):
+        user_content = user_content.replace(SUFFIX.strip(), task_suffix)
+    else:
+        for part in reversed(user_content):
+            if part.get("type") == "text" and SUFFIX.strip() in part["text"]:
+                part["text"] = part["text"].replace(SUFFIX.strip(), task_suffix)
+                break
+
+    if flow:
+        keys = ["name", "direction", "source_system", "source_entity", "target_system", "target_api", "trigger", "description"]
+        focus = _FLOW_FOCUS_PREFIX.format(**{k: flow.get(k, "") for k in keys})
+        if isinstance(user_content, str):
+            user_content = focus + user_content
+        else:
+            user_content = [{"type": "text", "text": focus}] + list(user_content)
+
+    if extra_prefix:
+        if isinstance(user_content, str):
+            user_content = extra_prefix + user_content
+        else:
+            user_content = [{"type": "text", "text": extra_prefix}] + list(user_content)
+
+    try:
+        gen = await _chat_complete(system_prompt, user_content, stream=True, max_tokens=max_tokens)
+        result = ""
+        async for text in gen:
+            result += text
+            yield _event("chunk", text=text)
+        yield _event("done", prompt=result)
+    except Exception as exc:
+        yield _event("error", message=f"LLM call failed: {exc}")
+
+
+# ── Visualise: Overview ───────────────────────────────────────────────────────
+
+_OVERVIEW_SYSTEM = """You are an SAP CPI integration architect. Analyse the provided integration
+specification and produce a structured overview in clean markdown.
+
+Output sections in this exact order:
+
+## Summary
+2-3 sentences describing what this integration does end-to-end.
+
+## Integration Patterns
+List each SAP CPI pattern used as a badge-style bullet:
+- **Request-Reply** — brief reason why
+- **Content Enricher** — brief reason why
+(use only patterns actually present: Request-Reply, Content Enricher, Exception Subprocess,
+CSRF Token Handling, Message Routing, Splitter, Aggregator, Polling Consumer, Event-Driven)
+
+## Systems & Interfaces
+| Direction | Source | Target | Protocol |
+|---|---|---|---|
+| → | System A | System B | OData V2 |
+
+## Adapters Used
+| Adapter | Role | Notes |
+|---|---|---|
+| HTTPS Sender | Inbound trigger | Receives webhook from IFS |
+
+## Complexity
+**Rating:** Low / Medium / High
+**Reason:** One sentence.
+
+## Key Considerations
+- Bullet per important non-obvious constraint (max 5)
+
+Output ONLY the markdown — no preamble, no fences."""
+
+_OVERVIEW_SUFFIX = "\n\nGenerate the structured iFlow overview for the integration described above."
+
+
+@router.post("/generate-visualise-overview")
+async def generate_visualise_overview(
+    files: List[UploadFile] = File(...),
+    flow_json: str = FastAPIForm(...),
+):
+    flow = json.loads(flow_json)
+    return StreamingResponse(
+        _stream_analysis(files, flow, _OVERVIEW_SYSTEM, _OVERVIEW_SUFFIX, max_tokens=1500),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+# ── Visualise: Field Mappings ─────────────────────────────────────────────────
+
+_MAPPINGS_SYSTEM = """You are an SAP CPI integration developer. Extract ALL field-level mappings
+from the integration specification and present them as a structured markdown document.
+
+## Field Mappings
+
+For each mapping interface, create a subsection:
+
+### [Interface Name] — [Source System] → [Target System]
+
+| Source Field | Source Type | Transformation | Target Field | Target Type | Notes |
+|---|---|---|---|---|---|
+| WorkOrderNo | String | Direct | ProjectID | String | — |
+| PlannedStartDate | Date | Format: YYYY-MM-DD | PlannedStartDate | Date | SAP format |
+
+After the table, add any mapping notes as bullets if relevant.
+
+If no explicit field mappings are described, list what CAN be inferred from context.
+Output ONLY the markdown — no preamble, no fences."""
+
+_MAPPINGS_SUFFIX = "\n\nExtract and list all field mappings from the integration described above."
+
+
+@router.post("/generate-field-mappings")
+async def generate_field_mappings(
+    files: List[UploadFile] = File(...),
+    flow_json: str = FastAPIForm(...),
+):
+    flow = json.loads(flow_json)
+    return StreamingResponse(
+        _stream_analysis(files, flow, _MAPPINGS_SYSTEM, _MAPPINGS_SUFFIX, max_tokens=2000),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+# ── Visualise: Config Checklist ───────────────────────────────────────────────
+
+_CHECKLIST_SYSTEM = """You are an SAP CPI developer preparing a deployment checklist.
+Generate a complete, actionable SAP CPI configuration checklist for this iFlow.
+
+## SAP CPI Configuration Checklist
+
+Group items under these headings (include only relevant groups):
+
+### Security & Credentials
+- [ ] Configure [Credential Name] in SAP CPI Security Material (type: OAuth2 / Basic / Cert)
+- [ ] ...
+
+### Sender Adapters
+- [ ] [Step Name] — HTTPS Sender: set Address to /http/<path>, enable CSRF if required
+- [ ] ...
+
+### Receiver Adapters
+- [ ] [Step Name] — OData V2: set Address to <url>, Resource Path to <path>, Operation to POST
+- [ ] ...
+
+### Mappings & Scripts
+- [ ] Upload XSLT file [filename] to Resources
+- [ ] ...
+
+### Parameters & Properties
+- [ ] Set externalized parameter [name] to [value/description]
+- [ ] ...
+
+### Testing Prerequisites
+- [ ] [What must exist before the iFlow can be tested]
+- [ ] ...
+
+Be specific: include adapter names, field values, and credential names from the specification.
+Use <placeholder> for values that cannot be determined.
+Output ONLY the markdown checklist — no preamble, no fences."""
+
+_CHECKLIST_SUFFIX = "\n\nGenerate the complete SAP CPI deployment checklist for the integration described above."
+
+
+@router.post("/generate-config-checklist")
+async def generate_config_checklist(
+    files: List[UploadFile] = File(...),
+    flow_json: str = FastAPIForm(...),
+):
+    flow = json.loads(flow_json)
+    return StreamingResponse(
+        _stream_analysis(files, flow, _CHECKLIST_SYSTEM, _CHECKLIST_SUFFIX, max_tokens=2000),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+# ── Visualise: Failure Modes ──────────────────────────────────────────────────
+
+_FAILURES_SYSTEM = """You are an SAP CPI integration architect performing failure mode analysis.
+Analyse every processing step and identify realistic failure scenarios.
+
+## Failure Mode Analysis
+
+For each step that could fail, write:
+
+### [Step Name] — [Adapter/Type]
+
+**Risk Level:** Low / Medium / High
+
+| Failure Mode | Cause | Impact | Mitigation |
+|---|---|---|---|
+| Connection timeout | Network issue or host down | Flow fails, sender gets 500 | Add retry policy; set timeout to 60s |
+| Auth failure | Expired credentials | 401/403; flow stops | Monitor cert/token expiry; use CPI alerts |
+
+---
+
+Cover: all adapter steps, script steps, mapping steps, and the exception subprocess.
+Be specific to this iFlow — do not give generic SAP advice unrelated to the described steps.
+Output ONLY the markdown — no preamble, no fences."""
+
+_FAILURES_SUFFIX = "\n\nAnalyse failure modes for every step in the integration described above."
+
+
+@router.post("/generate-failure-modes")
+async def generate_failure_modes(
+    files: List[UploadFile] = File(...),
+    flow_json: str = FastAPIForm(...),
+):
+    flow = json.loads(flow_json)
+    return StreamingResponse(
+        _stream_analysis(files, flow, _FAILURES_SYSTEM, _FAILURES_SUFFIX, max_tokens=2500),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+# ── Visualise: Step Detail ────────────────────────────────────────────────────
+
+_STEP_DETAIL_SYSTEM = """You are an SAP CPI integration architect explaining a specific step
+in an iFlow. A developer has clicked on a node in the iFlow diagram and wants to understand it.
+
+Produce a focused explanation in clean markdown using exactly these sections:
+
+## [Step Name]
+
+**What It Does**
+1–2 sentences: the specific function of this step in the flow.
+
+**Why It's Here**
+1–2 sentences: the business or technical reason this step exists at this point in the flow.
+
+**Key Configuration**
+- Field name: value or description
+- Field name: value or description
+(list only the important config fields specific to this step type)
+
+**What Can Fail**
+- Failure mode → impact (one line each, max 3)
+
+**Best Practice**
+1 concrete tip for this step type in SAP CPI.
+
+Be specific to the step described — do not give generic SAP CPI advice.
+Output ONLY the markdown — no preamble, no fences."""
+
+_STEP_DETAIL_SUFFIX = "\n\nExplain the specific iFlow step described in the prefix above."
+
+
+@router.post("/generate-step-detail")
+async def generate_step_detail(
+    files: List[UploadFile] = File(...),
+    flow_json: str = FastAPIForm(...),
+    node_label: str = FastAPIForm(...),
+    diagram_syntax: str = FastAPIForm(default=""),
+):
+    flow = json.loads(flow_json)
+    ctx = f"NODE TO EXPLAIN: {node_label}\n"
+    if diagram_syntax.strip():
+        ctx += f"\nFULL DIAGRAM CONTEXT (Mermaid syntax):\n{diagram_syntax}\n"
+    ctx += "\n"
+    return StreamingResponse(
+        _stream_analysis(files, flow, _STEP_DETAIL_SYSTEM, _STEP_DETAIL_SUFFIX,
+                         extra_prefix=ctx, max_tokens=1000),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )

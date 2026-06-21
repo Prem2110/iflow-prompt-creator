@@ -1,0 +1,462 @@
+/* ── Full-page overlay ─────────────────────────────────────────────────────── */
+.panel {
+  position: fixed;
+  inset: 0;
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  animation: vpFadeIn 0.18s ease;
+}
+
+@keyframes vpFadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+/* ── Header ─────────────────────────────────────────────────────────────────── */
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0 1rem;
+  height: 48px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.25rem 0.65rem;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text-2);
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: 'Lexend', sans-serif;
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.backBtn:hover { background: var(--surface-2); color: var(--text); }
+
+.headerCenter {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.headerIcon { color: var(--accent); opacity: 0.7; flex-shrink: 0; }
+
+.flowName {
+  font-size: 0.84rem;
+  font-weight: 700;
+  color: var(--text);
+  font-family: 'Lexend', sans-serif;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.dirBadge {
+  font-size: 0.66rem;
+  font-weight: 700;
+  padding: 0.15rem 0.5rem;
+  border-radius: 4px;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.headerControls {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+.ctrlBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.22rem 0.6rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-2);
+  font-size: 0.69rem;
+  font-weight: 600;
+  font-family: 'Lexend', sans-serif;
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.ctrlBtn:hover:not(:disabled) { background: var(--accent-dim); border-color: rgba(74,158,255,0.3); color: var(--accent); }
+.ctrlBtn:disabled { opacity: 0.4; cursor: not-allowed; }
+.ctrlBtnActive { background: var(--accent-dim); border-color: rgba(74,158,255,0.3); color: var(--accent); }
+.ctrlBtnRegen:hover:not(:disabled) { background: rgba(180,100,255,0.10); border-color: rgba(180,100,255,0.3); color: #b464ff; }
+
+.zoomPct {
+  font-size: 0.68rem;
+  font-weight: 600;
+  color: var(--text-3);
+  font-family: 'Lexend', sans-serif;
+  min-width: 36px;
+  text-align: right;
+}
+
+/* ── Body split ──────────────────────────────────────────────────────────────── */
+.body {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* ── Diagram area (left, ~60%) ──────────────────────────────────────────────── */
+.diagramArea {
+  flex: 0 0 60%;
+  min-width: 0;
+  background: #0c0f1a;
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+  border-right: 1px solid var(--border);
+}
+.diagramArea:active { cursor: grabbing; }
+
+.diagramInner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+}
+
+.diagramInner :global(svg) {
+  display: block;
+  max-width: none;
+}
+
+.diagramState {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  color: #8fa2b6;
+  font-size: 0.82rem;
+  font-family: 'Lexend', sans-serif;
+  pointer-events: none;
+}
+
+.diagramHint {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.64rem;
+  color: rgba(143,162,182,0.45);
+  font-family: 'Lexend', sans-serif;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.emptyIcon { color: #4a7ab5; opacity: 0.25; }
+.errorIcon { color: var(--error); }
+
+/* ── Right panel ─────────────────────────────────────────────────────────────── */
+.rightPanel {
+  flex: 0 0 40%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  overflow: hidden;
+}
+
+/* ── Tab bar ─────────────────────────────────────────────────────────────────── */
+.tabBar {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-2);
+  flex-shrink: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabBar::-webkit-scrollbar { display: none; }
+
+.tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.5rem 0.9rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid transparent;
+  color: var(--text-3);
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: 'Lexend', sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.12s;
+  flex-shrink: 0;
+}
+.tab:hover { color: var(--text-2); background: var(--surface-3); }
+.tabActive {
+  color: var(--accent);
+  border-bottom-color: var(--accent);
+  background: transparent;
+}
+
+.tabDot {
+  width: 5px; height: 5px;
+  border-radius: 50%;
+  background: var(--accent);
+  opacity: 0.7;
+}
+
+.stepBackBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.5rem 0.9rem;
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--accent);
+  color: var(--accent);
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: 'Lexend', sans-serif;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.stepBackBtn:hover { background: var(--accent-dim); }
+
+/* ── Right content area ──────────────────────────────────────────────────────── */
+.rightContent {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 1rem 1.1rem 1.5rem;
+}
+
+.rpLoading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--text-3);
+  font-size: 0.78rem;
+  font-family: 'Lexend', sans-serif;
+  padding: 1.5rem 0;
+}
+
+.rpError {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.4rem;
+  color: var(--error);
+  font-size: 0.75rem;
+  font-family: 'Lexend', sans-serif;
+  margin-bottom: 0.75rem;
+}
+
+.rpEmpty {
+  color: var(--text-3);
+  font-size: 0.78rem;
+  font-family: 'Lexend', sans-serif;
+  padding: 1.5rem 0;
+  text-align: center;
+}
+
+/* ── Step detail ─────────────────────────────────────────────────────────────── */
+.stepDetailWrap { padding-top: 0.25rem; }
+
+.stepDetailHeader {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding-bottom: 0.65rem;
+  border-bottom: 1px solid var(--border);
+}
+
+.stepIcon { color: var(--accent); opacity: 0.8; flex-shrink: 0; }
+
+.stepLabel {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--text);
+  font-family: 'Lexend', sans-serif;
+}
+
+/* ── Markdown rendering ──────────────────────────────────────────────────────── */
+.markdownBody { font-family: 'Lexend', sans-serif; }
+
+.h2 {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 1.1rem 0 0.45rem;
+  padding-bottom: 0.3rem;
+  border-bottom: 1px solid var(--border);
+}
+.h2:first-child { margin-top: 0; }
+
+.h3 {
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: var(--text-2);
+  margin: 0.85rem 0 0.3rem;
+}
+
+.h4 {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-2);
+  margin: 0.65rem 0 0.2rem;
+}
+
+.para {
+  font-size: 0.78rem;
+  color: var(--text-2);
+  line-height: 1.6;
+  margin: 0.2rem 0;
+}
+
+.bullet {
+  display: flex;
+  gap: 0.45rem;
+  font-size: 0.77rem;
+  color: var(--text-2);
+  line-height: 1.55;
+  margin: 0.15rem 0;
+}
+.dot { color: var(--accent); opacity: 0.7; flex-shrink: 0; margin-top: 0.05rem; }
+
+.numbered {
+  display: flex;
+  gap: 0.45rem;
+  font-size: 0.77rem;
+  color: var(--text-2);
+  line-height: 1.55;
+  margin: 0.15rem 0;
+}
+.num { color: var(--accent); font-weight: 700; flex-shrink: 0; min-width: 1.2rem; }
+
+.checkItem {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-size: 0.77rem;
+  color: var(--text-2);
+  line-height: 1.55;
+  margin: 0.2rem 0;
+  cursor: default;
+}
+.checkItem input[type="checkbox"] {
+  margin-top: 0.2rem;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
+.spacer { height: 0.4rem; }
+.hr { border: none; border-top: 1px solid var(--border); margin: 0.75rem 0; }
+
+.inlineCode {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  padding: 0.05rem 0.3rem;
+  color: var(--accent);
+}
+
+.codeBlock {
+  position: relative;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  margin: 0.5rem 0;
+  overflow: auto;
+}
+.codeLang {
+  display: block;
+  font-size: 0.62rem;
+  font-weight: 700;
+  font-family: 'Lexend', sans-serif;
+  color: var(--text-3);
+  padding: 0.3rem 0.65rem 0;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.codeBlock code {
+  display: block;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.71rem;
+  color: var(--text-2);
+  line-height: 1.55;
+  padding: 0.45rem 0.65rem 0.55rem;
+  white-space: pre;
+}
+
+/* ── Markdown tables ─────────────────────────────────────────────────────────── */
+.tableWrap {
+  overflow-x: auto;
+  margin: 0.6rem 0;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.73rem;
+  font-family: 'Lexend', sans-serif;
+}
+.table th {
+  background: var(--surface-2);
+  color: var(--text-2);
+  font-weight: 700;
+  font-size: 0.69rem;
+  padding: 0.4rem 0.65rem;
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+.table td {
+  color: var(--text-2);
+  padding: 0.35rem 0.65rem;
+  border-bottom: 1px solid rgba(var(--border-rgb, 74,122,181), 0.15);
+  vertical-align: top;
+  line-height: 1.5;
+}
+.table tr:last-child td { border-bottom: none; }
+.table tr:hover td { background: var(--surface-2); }
+
+/* ── Spinner ─────────────────────────────────────────────────────────────────── */
+.spin { animation: spinAnim 0.7s linear infinite; }
+@keyframes spinAnim { to { transform: rotate(360deg); } }
+
+.cursor {
+  display: inline-block;
+  color: var(--accent);
+  animation: blink 0.9s step-end infinite;
+  font-size: 0.85rem;
+}
+@keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0; } }
