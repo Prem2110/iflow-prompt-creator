@@ -1,0 +1,254 @@
+/* Diagram background used in both .body and the lightbox — always the same dark
+   surface so the SVG looks identical regardless of light/dark app theme.        */
+:root { --diagram-bg: #0c0f1a; }
+
+.container {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+/* ── Toolbar ─────────────────────────────────────────────────────────────── */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.45rem 0.75rem;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 8px 8px 0 0;
+  flex-shrink: 0;
+  gap: 0.5rem;
+}
+
+.toolbarLeft {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  min-width: 0;
+}
+
+.icon { color: var(--accent); opacity: 0.75; flex-shrink: 0; }
+
+.label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-2);
+  font-family: 'Lexend', sans-serif;
+  white-space: nowrap;
+}
+
+.hint {
+  font-size: 0.68rem;
+  color: var(--text-3);
+  font-family: 'Lexend', sans-serif;
+  white-space: nowrap;
+}
+
+.toolbarRight {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+
+/* ── Action buttons ──────────────────────────────────────────────────────── */
+.actionBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0.25rem 0.6rem;
+  background: var(--surface-3);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  color: var(--text-2);
+  font-size: 0.71rem;
+  font-weight: 600;
+  font-family: 'Lexend', sans-serif;
+  cursor: pointer;
+  transition: all 0.12s;
+  white-space: nowrap;
+}
+.actionBtn:hover:not(:disabled) {
+  background: var(--accent-dim);
+  border-color: rgba(74,158,255,0.3);
+  color: var(--accent);
+}
+.actionBtn:disabled { opacity: 0.35; cursor: not-allowed; }
+
+.copied {
+  background: var(--success-dim) !important;
+  border-color: rgba(29,201,154,0.3) !important;
+  color: var(--success) !important;
+}
+
+.exportBtn:hover:not(:disabled) {
+  background: var(--amber-dim);
+  border-color: rgba(245,166,35,0.3);
+  color: var(--amber);
+}
+
+.expandBtn:hover:not(:disabled) {
+  background: rgba(180,100,255,0.10);
+  border-color: rgba(180,100,255,0.3);
+  color: #b464ff;
+}
+
+/* ── Body — fixed dark bg for visual consistency across themes ───────────── */
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--diagram-bg);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+}
+
+/* ── Loading ─────────────────────────────────────────────────────────────── */
+.loading {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  color: #8fa2b6;
+  font-size: 0.81rem;
+  font-family: 'Lexend', sans-serif;
+}
+
+.spinner {
+  display: inline-block;
+  width: 14px;
+  height: 14px;
+  border: 2px solid #4a7ab5;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.65s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes spin { to { transform: rotate(360deg); } }
+
+/* ── Empty ───────────────────────────────────────────────────────────────── */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+.emptyIcon { color: #4a7ab5; opacity: 0.3; }
+
+.emptyTitle {
+  font-size: 0.84rem;
+  font-weight: 600;
+  color: #627088;
+  font-family: 'Lexend', sans-serif;
+}
+
+/* ── Error fallback ──────────────────────────────────────────────────────── */
+.errorWrap {
+  width: 100%;
+  max-width: 720px;
+}
+
+.errorTitle {
+  font-size: 0.74rem;
+  color: var(--error);
+  font-family: 'Lexend', sans-serif;
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+.rawSyntax {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: #8fa2b6;
+  background: #111a28;
+  border: 1px solid rgba(74,122,181,0.2);
+  border-radius: 6px;
+  padding: 0.85rem;
+  overflow: auto;
+  white-space: pre;
+}
+
+/* ── Rendered SVG (inline panel) ────────────────────────────────────────── */
+.diagram {
+  width: 100%;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.diagram :global(svg) {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+}
+
+/* ── Fullscreen lightbox ─────────────────────────────────────────────────── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(4, 6, 12, 0.88);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.18s ease;
+}
+
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+
+.overlayContent {
+  position: relative;
+  background: var(--diagram-bg);
+  border: 1px solid rgba(74,122,181,0.3);
+  border-radius: 12px;
+  padding: 1.5rem 1.5rem 1.25rem;
+  width: 92vw;
+  max-height: 90vh;
+  overflow: auto;
+  box-shadow: 0 24px 80px rgba(0,0,0,0.7);
+  animation: scaleIn 0.18s ease;
+}
+
+@keyframes scaleIn { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
+
+.overlayClose {
+  position: sticky;
+  top: 0;
+  float: right;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: rgba(255,255,255,0.07);
+  border: 1px solid rgba(255,255,255,0.12);
+  border-radius: 6px;
+  color: #8fa2b6;
+  cursor: pointer;
+  transition: all 0.12s;
+  margin-bottom: 0.5rem;
+  z-index: 1;
+}
+.overlayClose:hover { background: rgba(255,107,107,0.15); border-color: rgba(255,107,107,0.3); color: #ff6b6b; }
+
+.overlayDiagram {
+  display: flex;
+  justify-content: center;
+  clear: both;
+}
+
+.overlayDiagram :global(svg) {
+  width: 100%;
+  height: auto;
+  display: block;
+}

@@ -896,6 +896,126 @@ async def discover_flows(files: List[UploadFile] = File(...)):
 # ── Generate single flow prompt endpoint ─────────────────────────────────────
 
 
+# ── Diagram endpoint ──────────────────────────────────────────────────────────
+
+_DIAGRAM_SYSTEM = """You are an SAP CPI integration architect generating a Mermaid.js flowchart.
+
+Analyse the provided integration documentation and output a valid Mermaid flowchart LR diagram
+that shows the complete SAP CPI iFlow architecture.
+
+Output ONLY valid Mermaid flowchart syntax — no preamble, no explanation, no markdown fences.
+The very first line of your output must be: flowchart LR
+
+STRUCTURE:
+- Use three subgraphs:
+    subgraph SOURCE["<source system name>"]   — the sending system
+    subgraph IFLOW["SAP CPI iFlow"]           — every CPI processing step in order
+    subgraph TARGET["<target system name>"]   — the receiving system
+- If an Exception Subprocess exists in the documents, add:
+    subgraph EXCEPTION["Exception Subprocess"]
+
+NODE SHAPES:
+- Start / End events and external endpoints: stadium   node_id(["Label"])
+- Processing steps (Content Modifier, Script, XSLT…): rectangle   node_id["Label"]
+- Decisions / routers: diamond   node_id{"Label"}
+
+NODE IDs: short snake_case, no spaces (e.g. cm_set_headers, request_reply_call_sap)
+NODE LABELS: 2–5 words maximum; use \\n for a second line if needed
+
+EDGES:
+- Use --> for all connections
+- Add adapter/protocol label on channel edges:   -->|"OData V2"| next_node
+- Short labels only: "HTTPS", "OData V2", "RFC", "SFTP", "Mail", "SOAP", "IDoc", "JDBC", etc.
+
+Rules:
+- Every significant component (adapters, Content Modifiers, scripts, mappings, Request-Reply, error handler) must appear as a node
+- Keep the diagram accurate to the documents — do not invent steps not described
+- Output ONLY the Mermaid syntax — nothing else, no extra text
+"""
+
+_DIAGRAM_SUFFIX = "\n\nGenerate the Mermaid.js flowchart LR diagram syntax for the iFlow described in the content above."
+
+
+async def _stream_diagram(files: List[UploadFile], flow=None) -> AsyncGenerator[str, None]:
+    for f in files:
+        ext = Path(f.filename or "").suffix.lower()
+        if ext not in _ALLOWED_EXTENSIONS:
+            yield _event("error", message=f"Unsupported file type '{ext}' for '{f.filename}'")
+            return
+
+    file_data_list: list[tuple[UploadFile, bytes]] = []
+    for f in files:
+        data = await f.read()
+        if len(data) > _MAX_FILE_SIZE:
+            yield _event("error",
+                         message=f"File '{f.filename}' exceeds {_MAX_FILE_SIZE // (1024*1024)} MB limit")
+            return
+        file_data_list.append((f, data))
+
+    yield _event("step", key="extract", message=f"Extracting content from {len(files)} file(s)…")
+    try:
+        extracted = [item for f, data in file_data_list for item in await extract(f, data)]
+        n_text = sum(1 for e in extracted if e["kind"] == "text")
+        n_img = sum(1 for e in extracted if e["kind"] == "image")
+        logger.info("Diagram — extracted %d text and %d image item(s)", n_text, n_img)
+        msg = f"Extracted {n_text} text" + (f" and {n_img} image page(s)" if n_img else "") + " from uploaded file(s)"
+        yield _event("step_done", key="extract", message=msg)
+    except Exception as exc:
+        logger.error("Diagram extraction failed: %s", exc, exc_info=True)
+        yield _event("error", message=f"File extraction failed: {exc}")
+        return
+
+    user_content = _build_user_content(extracted)
+    if isinstance(user_content, str):
+        user_content = user_content.replace(SUFFIX.strip(), _DIAGRAM_SUFFIX.strip())
+    else:
+        for part in reversed(user_content):
+            if part.get("type") == "text" and SUFFIX.strip() in part["text"]:
+                part["text"] = part["text"].replace(SUFFIX.strip(), _DIAGRAM_SUFFIX.strip())
+                break
+
+    if flow:
+        keys = ["name", "direction", "source_system", "source_entity", "target_system", "target_api", "trigger", "description"]
+        focus = _FLOW_FOCUS_PREFIX.format(**{k: flow.get(k, "") for k in keys})
+        if isinstance(user_content, str):
+            user_content = focus + user_content
+        else:
+            user_content = [{"type": "text", "text": focus}] + list(user_content)
+
+    yield _event("step", key="generate", message="Claude is generating the iFlow diagram…")
+    try:
+        gen = await _chat_complete(_DIAGRAM_SYSTEM, user_content, stream=True, max_tokens=2048)
+        result = ""
+        async for text in gen:
+            result += text
+            yield _event("chunk", text=text)
+        logger.info("Diagram complete: %d chars", len(result))
+        yield _event("step_done", key="generate", message="Diagram ready")
+    except Exception as exc:
+        logger.error("Diagram LLM call failed: %s", exc, exc_info=True)
+        yield _event("error", message=f"LLM call failed: {exc}")
+        return
+
+    yield _event("done", prompt=result)
+
+
+@router.post("/generate-flow-diagram")
+async def generate_flow_diagram(
+    files: List[UploadFile] = File(...),
+    flow_json: str = FastAPIForm(...),
+):
+    flow = json.loads(flow_json)
+    logger.info("Flow diagram request — flow: %s", flow.get("name"))
+    return StreamingResponse(
+        _stream_diagram(files, flow=flow),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
+
+
+# ── Generate single flow prompt endpoint ─────────────────────────────────────
+
+
 @router.post("/generate-flow-prompt")
 async def generate_flow_prompt(
     files: List[UploadFile] = File(...),
