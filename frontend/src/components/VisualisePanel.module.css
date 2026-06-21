@@ -153,18 +153,42 @@
   max-width: none;
 }
 
-.diagramState {
+/* ── Loading bar (top strip, animated) ──────────────────────────────────────── */
+.loadingBar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  z-index: 20;
+  background: linear-gradient(90deg, #4a9eff 0%, #b464ff 50%, #4a9eff 100%);
+  background-size: 200% 100%;
+  animation: loadingBarSlide 1.4s linear infinite;
+}
+@keyframes loadingBarSlide {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* ── Overlay (spinner / error / empty) ──────────────────────────────────────── */
+.loadingOverlay {
   position: absolute;
   inset: 0;
+  z-index: 10;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 0.75rem;
-  color: #8fa2b6;
-  font-size: 0.82rem;
-  font-family: 'Lexend', sans-serif;
+  gap: 0.85rem;
+  background: rgba(12, 15, 26, 0.82);
   pointer-events: none;
+}
+
+.loadingLabel {
+  color: #8fa2b6;
+  font-size: 0.84rem;
+  font-family: 'Lexend', sans-serif;
+  font-weight: 500;
 }
 
 .diagramHint {

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react";
 import {
   ArrowLeft, GitBranch, Maximize2, Minimize2, RefreshCw,
   LayoutGrid, AlignLeft, ChevronLeft, MousePointer2,
@@ -93,7 +93,7 @@ function useStream() {
   return { text, loading, error, run, reset };
 }
 
-// ── Markdown renderer (lightweight, no deps) ──────────────────────────────────
+// ── Markdown renderer ─────────────────────────────────────────────────────────
 
 function isTableRow(t) { return t.startsWith("|") && t.endsWith("|") && t.length > 2; }
 function isSepRow(t) { return /^\|[\s\-:|]+\|$/.test(t); }
@@ -160,12 +160,12 @@ function MarkdownContent({ text, loading }) {
       continue;
     }
 
-    if (t.startsWith("## "))       els.push(<h3 key={i} className={styles.h2}>{renderInline(t.slice(3))}</h3>);
-    else if (t.startsWith("### ")) els.push(<h4 key={i} className={styles.h3}>{renderInline(t.slice(4))}</h4>);
-    else if (t.startsWith("#### "))els.push(<h5 key={i} className={styles.h4}>{renderInline(t.slice(5))}</h5>);
-    else if (t.startsWith("- [ ] "))els.push(<label key={i} className={styles.checkItem}><input type="checkbox" disabled /><span>{renderInline(t.slice(6))}</span></label>);
-    else if (t.startsWith("- [x] ") || t.startsWith("- [X] "))els.push(<label key={i} className={styles.checkItem}><input type="checkbox" disabled defaultChecked /><span>{renderInline(t.slice(6))}</span></label>);
-    else if (t.startsWith("- ") || t.startsWith("* "))els.push(<div key={i} className={styles.bullet}><span className={styles.dot}>•</span><span>{renderInline(t.slice(2))}</span></div>);
+    if (t.startsWith("## "))        els.push(<h3 key={i} className={styles.h2}>{renderInline(t.slice(3))}</h3>);
+    else if (t.startsWith("### "))  els.push(<h4 key={i} className={styles.h3}>{renderInline(t.slice(4))}</h4>);
+    else if (t.startsWith("#### ")) els.push(<h5 key={i} className={styles.h4}>{renderInline(t.slice(5))}</h5>);
+    else if (t.startsWith("- [ ] ")) els.push(<label key={i} className={styles.checkItem}><input type="checkbox" disabled /><span>{renderInline(t.slice(6))}</span></label>);
+    else if (t.startsWith("- [x] ") || t.startsWith("- [X] ")) els.push(<label key={i} className={styles.checkItem}><input type="checkbox" disabled defaultChecked /><span>{renderInline(t.slice(6))}</span></label>);
+    else if (t.startsWith("- ") || t.startsWith("* ")) els.push(<div key={i} className={styles.bullet}><span className={styles.dot}>•</span><span>{renderInline(t.slice(2))}</span></div>);
     else if (/^\d+\.\s/.test(t)) {
       const m = t.match(/^(\d+)\.\s(.*)$/);
       els.push(<div key={i} className={styles.numbered}><span className={styles.num}>{m[1]}.</span><span>{renderInline(m[2])}</span></div>);
@@ -187,10 +187,10 @@ function MarkdownContent({ text, loading }) {
 // ── Right panel tab configs ───────────────────────────────────────────────────
 
 const RIGHT_TABS = [
-  { key: "overview",  label: "Overview",     endpoint: "/api/generate-visualise-overview" },
+  { key: "overview",  label: "Overview",      endpoint: "/api/generate-visualise-overview" },
   { key: "mappings",  label: "Field Mappings", endpoint: "/api/generate-field-mappings" },
-  { key: "checklist", label: "Checklist",    endpoint: "/api/generate-config-checklist" },
-  { key: "failures",  label: "Failure Modes", endpoint: "/api/generate-failure-modes" },
+  { key: "checklist", label: "Checklist",      endpoint: "/api/generate-config-checklist" },
+  { key: "failures",  label: "Failure Modes",  endpoint: "/api/generate-failure-modes" },
 ];
 
 // ── Main component ────────────────────────────────────────────────────────────
@@ -205,46 +205,56 @@ export default function VisualisePanel({ flow, files, onClose, toast }) {
     localStorage.setItem("orbit-dark", next);
   }
 
-  // Diagram state — start loading=true because we generate on mount
+  // Diagram
   const [diagramSyntax, setDiagramSyntax] = useState("");
-  const [diagramSvg, setDiagramSvg] = useState("");
+  const [diagramSvg,    setDiagramSvg]    = useState("");
+  // Start as loading=true — generateDiagram fires on mount
   const [diagramLoading, setDiagramLoading] = useState(true);
-  const [diagramError, setDiagramError] = useState("");
-  const [direction, setDirection] = useState("LR"); // LR | TD
-  const renderIdRef = useRef(0);
+  const [diagramError,   setDiagramError]   = useState("");
+  const [direction,      setDirection]      = useState("LR");
+  const renderIdRef    = useRef(0);
   const diagramAbortRef = useRef(null);
 
   // Zoom / pan
   const [transform, setTransform] = useState({ scale: 1, x: 0, y: 0 });
-  const transformRef = useRef(transform);
-  useEffect(() => { transformRef.current = transform; }, [transform]);
+  const transformRef = useRef({ scale: 1, x: 0, y: 0 });
   const drag = useRef({ active: false, startX: 0, startY: 0, originX: 0, originY: 0 });
-  const containerRef = useRef(null);
-  const diagramRef = useRef(null);
+
+  // Persistent refs — these divs are ALWAYS in the DOM, never conditionally rendered
+  const containerRef  = useRef(null); // the whole diagramArea
+  const svgWrapRef    = useRef(null); // permanent inner div where SVG is injected
+
+  // Node click state
+  const diagramSyntaxRef = useRef("");
+  useEffect(() => { diagramSyntaxRef.current = diagramSyntax; }, [diagramSyntax]);
 
   // Right panel
   const [activeTab, setActiveTab] = useState("overview");
-  const [tabDone, setTabDone] = useState({});   // { overview: true, ... }
+  const [tabDone,   setTabDone]   = useState({});
   const overviewStream  = useStream();
   const mappingsStream  = useStream();
   const checklistStream = useStream();
   const failuresStream  = useStream();
   const stepStream      = useStream();
-
   const streams = { overview: overviewStream, mappings: mappingsStream, checklist: checklistStream, failures: failuresStream };
 
-  // Node click
   const [selectedNode, setSelectedNode] = useState(null);
-  const [prevTab, setPrevTab] = useState("overview");
+  const [prevTab,      setPrevTab]      = useState("overview");
+  const activeTabRef = useRef("overview");
+  useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
 
-  // ── Generate diagram ────────────────────────────────────────────────────────
+  // ── Generate diagram from API ─────────────────────────────────────────────
 
   async function generateDiagram() {
     if (diagramAbortRef.current) diagramAbortRef.current.abort();
     const ctrl = new AbortController();
     diagramAbortRef.current = ctrl;
 
-    setDiagramLoading(true); setDiagramSyntax(""); setDiagramSvg(""); setDiagramError("");
+    setDiagramLoading(true);
+    setDiagramSyntax("");
+    setDiagramSvg("");
+    setDiagramError("");
+
     const form = new FormData();
     files.forEach(f => form.append("files", f));
     form.append("flow_json", JSON.stringify(flow));
@@ -276,26 +286,10 @@ export default function VisualisePanel({ flow, files, onClose, toast }) {
     }
   }
 
-  // ── Generate tab content ────────────────────────────────────────────────────
+  // ── Mermaid render (async, fires when syntax or direction changes) ─────────
 
-  function generateTab(key) {
-    const cfg = RIGHT_TABS.find(t => t.key === key);
-    if (!cfg) return;
-    streams[key].run(cfg.endpoint, files, flow);
-    setTabDone(d => ({ ...d, [key]: true }));
-  }
-
-  // Auto-generate diagram + overview on mount
   useEffect(() => {
-    generateDiagram();
-    generateTab("overview");
-    setTabDone({ overview: true });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Re-render SVG when syntax changes or direction changes
-  useEffect(() => {
-    if (!diagramSyntax) return;
+    if (!diagramSyntax) { setDiagramSvg(""); return; }
     let cancelled = false;
     const syntax = direction === "TD"
       ? cleanSyntax(diagramSyntax).replace(/^flowchart\s+LR/m, "flowchart TD")
@@ -315,12 +309,32 @@ export default function VisualisePanel({ flow, files, onClose, toast }) {
     return () => { cancelled = true; };
   }, [diagramSyntax, direction]);
 
-  // Attach node click handlers after SVG renders
-  useEffect(() => {
-    if (!diagramSvg || !diagramRef.current) return;
-    const nodes = diagramRef.current.querySelectorAll(".node");
-    const handlers = [];
-    nodes.forEach(node => {
+  // ── Inject SVG + fit + node handlers (useLayoutEffect = sync after DOM) ───
+
+  useLayoutEffect(() => {
+    const wrap = svgWrapRef.current;
+    if (!wrap) return;
+
+    // Always clear first
+    wrap.innerHTML = "";
+
+    if (!diagramSvg) return;
+
+    // Inject SVG into persistent wrapper (no React re-render timing issues)
+    wrap.innerHTML = diagramSvg;
+
+    // Remove any max-width from the SVG so it fills properly
+    const svgEl = wrap.querySelector("svg");
+    if (svgEl) {
+      svgEl.style.maxWidth = "none";
+      svgEl.style.width = "auto";
+      svgEl.style.height = "auto";
+      svgEl.style.display = "block";
+    }
+
+    // Attach node click handlers
+    const nodeHandlers = [];
+    wrap.querySelectorAll(".node").forEach(node => {
       node.style.cursor = "pointer";
       const handler = () => {
         const label =
@@ -329,22 +343,70 @@ export default function VisualisePanel({ flow, files, onClose, toast }) {
           node.querySelector("text")?.textContent?.trim() ||
           node.id.replace(/^flowchart-/, "").replace(/-\d+$/, "").replace(/_/g, " ");
         if (!label) return;
-        setPrevTab(activeTab);
+        setPrevTab(activeTabRef.current);
         setSelectedNode({ id: node.id, label });
         stepStream.reset();
         stepStream.run("/api/generate-step-detail", files, flow, {
           node_label: label,
-          diagram_syntax: cleanSyntax(diagramSyntax),
+          diagram_syntax: cleanSyntax(diagramSyntaxRef.current),
         });
       };
       node.addEventListener("click", handler);
-      handlers.push({ node, handler });
+      nodeHandlers.push({ node, handler });
     });
-    return () => handlers.forEach(({ node, handler }) => node.removeEventListener("click", handler));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    // Fit to screen immediately — DOM is already updated in useLayoutEffect
+    const container = containerRef.current;
+    if (container && svgEl) {
+      const cw = container.offsetWidth;
+      const ch = container.offsetHeight;
+      if (cw > 0 && ch > 0) {
+        // Use viewBox dimensions (Mermaid always sets these in user units = px)
+        const vb = svgEl.viewBox?.baseVal;
+        let sw = (vb && vb.width  > 10) ? vb.width  : 800;
+        let sh = (vb && vb.height > 10) ? vb.height : 600;
+
+        // Fallback: parse max-width from style attr (e.g. "max-width: 816px;")
+        if (!vb || vb.width <= 10) {
+          const mw = (svgEl.getAttribute("style") || "").match(/max-width:\s*([\d.]+)px/);
+          if (mw) sw = parseFloat(mw[1]);
+        }
+
+        const pad = 48;
+        const scale = Math.min((cw - pad) / sw, (ch - pad) / sh);
+        const x = (cw - sw * scale) / 2;
+        const y = (ch - sh * scale) / 2;
+        // Use refs to avoid scheduling a setState inside useLayoutEffect
+        const next = { scale, x, y };
+        transformRef.current = next;
+        setTransform(next);
+      }
+    }
+
+    return () => {
+      nodeHandlers.forEach(({ node, handler }) => node.removeEventListener("click", handler));
+    };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [diagramSvg]);
 
-  // ── Tab switching ───────────────────────────────────────────────────────────
+  // ── Generate tab content ──────────────────────────────────────────────────
+
+  function generateTab(key) {
+    const cfg = RIGHT_TABS.find(t => t.key === key);
+    if (!cfg) return;
+    streams[key].run(cfg.endpoint, files, flow);
+    setTabDone(d => ({ ...d, [key]: true }));
+  }
+
+  // Auto-generate on mount
+  useEffect(() => {
+    generateDiagram();
+    generateTab("overview");
+    setTabDone({ overview: true });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── Tab switching ─────────────────────────────────────────────────────────
 
   function switchTab(key) {
     setActiveTab(key);
@@ -352,12 +414,16 @@ export default function VisualisePanel({ flow, files, onClose, toast }) {
     if (!tabDone[key]) generateTab(key);
   }
 
-  // ── Zoom / pan handlers ─────────────────────────────────────────────────────
+  // ── Zoom / pan ────────────────────────────────────────────────────────────
 
   function onWheel(e) {
     e.preventDefault();
     const factor = e.deltaY < 0 ? 1.12 : 0.88;
-    setTransform(t => ({ ...t, scale: Math.max(0.1, Math.min(6, t.scale * factor)) }));
+    setTransform(t => {
+      const next = { ...t, scale: Math.max(0.1, Math.min(6, t.scale * factor)) };
+      transformRef.current = next;
+      return next;
+    });
   }
 
   function onMouseDown(e) {
@@ -372,60 +438,55 @@ export default function VisualisePanel({ flow, files, onClose, toast }) {
 
   function onMouseMove(e) {
     if (!drag.current.active) return;
-    setTransform(t => ({
-      ...t,
-      x: drag.current.originX + (e.clientX - drag.current.startX),
-      y: drag.current.originY + (e.clientY - drag.current.startY),
-    }));
+    setTransform(t => {
+      const next = {
+        ...t,
+        x: drag.current.originX + (e.clientX - drag.current.startX),
+        y: drag.current.originY + (e.clientY - drag.current.startY),
+      };
+      transformRef.current = next;
+      return next;
+    });
   }
 
   function onMouseUp() { drag.current.active = false; }
 
   function fitToScreen() {
-    if (!containerRef.current || !diagramRef.current) return;
-    const svgEl = diagramRef.current.querySelector("svg");
+    const wrap = svgWrapRef.current;
+    const container = containerRef.current;
+    if (!wrap || !container) return;
+    const svgEl = wrap.querySelector("svg");
     if (!svgEl) return;
 
-    const cr = containerRef.current.getBoundingClientRect();
-    const cw = cr.width;
-    const ch = cr.height;
+    const cw = container.offsetWidth;
+    const ch = container.offsetHeight;
     if (!cw || !ch) return;
 
-    // Prefer viewBox (Mermaid always sets this), then explicit attrs, then rendered size
-    let sw = 0, sh = 0;
     const vb = svgEl.viewBox?.baseVal;
-    if (vb && vb.width > 0 && vb.height > 0) { sw = vb.width; sh = vb.height; }
-    if (!sw || !sh) {
-      const wa = svgEl.getAttribute("width");
-      const ha = svgEl.getAttribute("height");
-      if (wa && !wa.includes("%")) sw = parseFloat(wa);
-      if (ha && !ha.includes("%")) sh = parseFloat(ha);
-    }
-    if (!sw || !sh) {
-      const sr = svgEl.getBoundingClientRect();
-      sw = sr.width; sh = sr.height;
-    }
-    if (!sw || !sh) return;
+    let sw = (vb && vb.width  > 10) ? vb.width  : 800;
+    let sh = (vb && vb.height > 10) ? vb.height : 600;
 
-    const pad = 40;
+    if (!vb || vb.width <= 10) {
+      const mw = (svgEl.getAttribute("style") || "").match(/max-width:\s*([\d.]+)px/);
+      if (mw) sw = parseFloat(mw[1]);
+    }
+
+    const pad = 48;
     const scale = Math.min((cw - pad) / sw, (ch - pad) / sh);
-    setTransform({ scale, x: (cw - sw * scale) / 2, y: (ch - sh * scale) / 2 });
+    const next = { scale, x: (cw - sw * scale) / 2, y: (ch - sh * scale) / 2 };
+    transformRef.current = next;
+    setTransform(next);
   }
 
-  // Auto-fit whenever a new SVG is rendered
-  useEffect(() => {
-    if (!diagramSvg) return;
-    requestAnimationFrame(() => requestAnimationFrame(() => fitToScreen()));
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [diagramSvg]);
-
-  function resetZoom() { setTransform({ scale: 1, x: 0, y: 0 }); }
-
-  function toggleDirection() {
-    setDirection(d => d === "LR" ? "TD" : "LR");
+  function resetZoom() {
+    const next = { scale: 1, x: 0, y: 0 };
+    transformRef.current = next;
+    setTransform(next);
   }
 
-  // ── Active right panel stream ───────────────────────────────────────────────
+  function toggleDirection() { setDirection(d => d === "LR" ? "TD" : "LR"); }
+
+  // ── Right panel active stream ─────────────────────────────────────────────
 
   const activeStream = selectedNode ? stepStream : (streams[activeTab] || overviewStream);
 
@@ -493,33 +554,39 @@ export default function VisualisePanel({ flow, files, onClose, toast }) {
           onMouseUp={onMouseUp}
           onMouseLeave={onMouseUp}
         >
+          {/* Loading bar — shown at top of diagram area while generating */}
+          {diagramLoading && <div className={styles.loadingBar} />}
+
+          {/* Spinner overlay — shown while generating (no SVG yet) */}
           {diagramLoading && (
-            <div className={styles.diagramState}>
-              <Loader2 size={22} className={styles.spin} />
-              <span>Generating diagram…</span>
-            </div>
-          )}
-          {!diagramLoading && diagramError && (
-            <div className={styles.diagramState}>
-              <AlertCircle size={20} className={styles.errorIcon} />
-              <span>{diagramError}</span>
-            </div>
-          )}
-          {!diagramLoading && !diagramSvg && !diagramError && (
-            <div className={styles.diagramState}>
-              <GitBranch size={28} strokeWidth={1.4} className={styles.emptyIcon} />
-              <span>No diagram yet</span>
+            <div className={styles.loadingOverlay}>
+              <Loader2 size={28} className={styles.spin} />
+              <span className={styles.loadingLabel}>Generating diagram…</span>
             </div>
           )}
 
-          {diagramSvg && (
-            <div
-              className={styles.diagramInner}
-              style={{ transform: `translate(${transform.x}px,${transform.y}px) scale(${transform.scale})` }}
-              ref={diagramRef}
-              dangerouslySetInnerHTML={{ __html: diagramSvg }}
-            />
+          {/* Error state */}
+          {!diagramLoading && diagramError && (
+            <div className={styles.loadingOverlay}>
+              <AlertCircle size={22} className={styles.errorIcon} />
+              <span className={styles.loadingLabel}>{diagramError}</span>
+            </div>
           )}
+
+          {/* Empty state */}
+          {!diagramLoading && !diagramSvg && !diagramError && (
+            <div className={styles.loadingOverlay}>
+              <GitBranch size={32} strokeWidth={1.4} className={styles.emptyIcon} />
+              <span className={styles.loadingLabel}>No diagram yet</span>
+            </div>
+          )}
+
+          {/* PERSISTENT wrapper — always in DOM, SVG injected via useLayoutEffect */}
+          <div
+            ref={svgWrapRef}
+            className={styles.diagramInner}
+            style={{ transform: `translate(${transform.x}px,${transform.y}px) scale(${transform.scale})` }}
+          />
 
           {diagramSvg && (
             <div className={styles.diagramHint}>
@@ -531,7 +598,6 @@ export default function VisualisePanel({ flow, files, onClose, toast }) {
         {/* Right: context panel */}
         <div className={styles.rightPanel}>
 
-          {/* Tab bar */}
           <div className={styles.tabBar}>
             {selectedNode ? (
               <button className={styles.stepBackBtn} onClick={() => setSelectedNode(null)}>
@@ -551,7 +617,6 @@ export default function VisualisePanel({ flow, files, onClose, toast }) {
             )}
           </div>
 
-          {/* Content */}
           <div className={styles.rightContent}>
             {selectedNode ? (
               <div className={styles.stepDetailWrap}>
@@ -573,9 +638,7 @@ export default function VisualisePanel({ flow, files, onClose, toast }) {
                   <div className={styles.rpLoading}><Loader2 size={16} className={styles.spin} /> Generating…</div>
                 )}
                 {!activeStream.text && !activeStream.loading && !activeStream.error && (
-                  <div className={styles.rpEmpty}>
-                    <p>Click a tab to generate content</p>
-                  </div>
+                  <div className={styles.rpEmpty}><p>Click a tab to generate content</p></div>
                 )}
                 <MarkdownContent text={activeStream.text} loading={activeStream.loading} />
               </>
