@@ -101,6 +101,15 @@
 .ctrlBtnActive { background: var(--accent-dim); border-color: rgba(74,158,255,0.3); color: var(--accent); }
 .ctrlBtnRegen:hover:not(:disabled) { background: rgba(180,100,255,0.10); border-color: rgba(180,100,255,0.3); color: #b464ff; }
 
+.ctrlBtnTheme:hover:not(:disabled) { background: rgba(245,166,35,0.12); border-color: rgba(245,166,35,0.3); color: #f5a623; }
+
+.ctrlDivider {
+  width: 1px;
+  height: 20px;
+  background: var(--border);
+  flex-shrink: 0;
+}
+
 .zoomPct {
   font-size: 0.68rem;
   font-weight: 600;

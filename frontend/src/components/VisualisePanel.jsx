@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
 import {
   ArrowLeft, GitBranch, Maximize2, Minimize2, RefreshCw,
   LayoutGrid, AlignLeft, ChevronLeft, MousePointer2,
-  Loader2, AlertCircle,
+  Loader2, AlertCircle, Sun, Moon,
 } from "lucide-react";
 import { badgeStyle } from "./dirBadge.js";
 import styles from "./VisualisePanel.module.css";
@@ -196,10 +196,19 @@ const RIGHT_TABS = [
 // ── Main component ────────────────────────────────────────────────────────────
 
 export default function VisualisePanel({ flow, files, onClose, toast }) {
-  // Diagram state
+  // Theme
+  const [isDark, setIsDark] = useState(() => document.documentElement.getAttribute("data-theme") !== "light");
+  function toggleTheme() {
+    const next = !isDark;
+    setIsDark(next);
+    document.documentElement.setAttribute("data-theme", next ? "dark" : "light");
+    localStorage.setItem("orbit-dark", next);
+  }
+
+  // Diagram state — start loading=true because we generate on mount
   const [diagramSyntax, setDiagramSyntax] = useState("");
   const [diagramSvg, setDiagramSvg] = useState("");
-  const [diagramLoading, setDiagramLoading] = useState(false);
+  const [diagramLoading, setDiagramLoading] = useState(true);
   const [diagramError, setDiagramError] = useState("");
   const [direction, setDirection] = useState("LR"); // LR | TD
   const renderIdRef = useRef(0);
@@ -376,14 +385,39 @@ export default function VisualisePanel({ flow, files, onClose, toast }) {
     if (!containerRef.current || !diagramRef.current) return;
     const svgEl = diagramRef.current.querySelector("svg");
     if (!svgEl) return;
-    const cw = containerRef.current.clientWidth - 48;
-    const ch = containerRef.current.clientHeight - 48;
+
+    const cr = containerRef.current.getBoundingClientRect();
+    const cw = cr.width;
+    const ch = cr.height;
+    if (!cw || !ch) return;
+
+    // Prefer viewBox (Mermaid always sets this), then explicit attrs, then rendered size
+    let sw = 0, sh = 0;
     const vb = svgEl.viewBox?.baseVal;
-    const sw = (vb && vb.width > 0 ? vb.width : svgEl.clientWidth) || 800;
-    const sh = (vb && vb.height > 0 ? vb.height : svgEl.clientHeight) || 600;
-    const scale = Math.min(cw / sw, ch / sh, 2);
-    setTransform({ scale, x: (cw - sw * scale) / 2 + 24, y: (ch - sh * scale) / 2 + 24 });
+    if (vb && vb.width > 0 && vb.height > 0) { sw = vb.width; sh = vb.height; }
+    if (!sw || !sh) {
+      const wa = svgEl.getAttribute("width");
+      const ha = svgEl.getAttribute("height");
+      if (wa && !wa.includes("%")) sw = parseFloat(wa);
+      if (ha && !ha.includes("%")) sh = parseFloat(ha);
+    }
+    if (!sw || !sh) {
+      const sr = svgEl.getBoundingClientRect();
+      sw = sr.width; sh = sr.height;
+    }
+    if (!sw || !sh) return;
+
+    const pad = 40;
+    const scale = Math.min((cw - pad) / sw, (ch - pad) / sh);
+    setTransform({ scale, x: (cw - sw * scale) / 2, y: (ch - sh * scale) / 2 });
   }
+
+  // Auto-fit whenever a new SVG is rendered
+  useEffect(() => {
+    if (!diagramSvg) return;
+    requestAnimationFrame(() => requestAnimationFrame(() => fitToScreen()));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diagramSvg]);
 
   function resetZoom() { setTransform({ scale: 1, x: 0, y: 0 }); }
 
@@ -435,6 +469,14 @@ export default function VisualisePanel({ flow, files, onClose, toast }) {
             {diagramLoading ? "Generating…" : "Regenerate"}
           </button>
           <span className={styles.zoomPct}>{Math.round(transform.scale * 100)}%</span>
+          <div className={styles.ctrlDivider} />
+          <button
+            className={`${styles.ctrlBtn} ${styles.ctrlBtnTheme}`}
+            onClick={toggleTheme}
+            title={isDark ? "Switch to light theme" : "Switch to dark theme"}
+          >
+            {isDark ? <Sun size={13} /> : <Moon size={13} />}
+          </button>
         </div>
       </div>
 
