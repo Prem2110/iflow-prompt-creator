@@ -162,6 +162,18 @@ function MD({ text, loading }) {
   return <div className={styles.markdownBody}>{els}{loading && <span className={styles.cursor}>▋</span>}</div>;
 }
 
+// ── Background presets ────────────────────────────────────────────────────────
+
+const BG_PRESETS = [
+  { id: "navy",     color: "#0c0f1a", label: "Navy"     },
+  { id: "black",    color: "#060606", label: "Black"    },
+  { id: "slate",    color: "#0d1117", label: "Slate"    },
+  { id: "midnight", color: "#04080f", label: "Midnight" },
+  { id: "charcoal", color: "#121210", label: "Charcoal" },
+];
+const DOT_GRID = "radial-gradient(circle, rgba(74,158,255,0.18) 1px, transparent 1px)";
+const BG_KEY   = "orbit-diag-bg";
+
 // ── Tab configs ───────────────────────────────────────────────────────────────
 
 const TABS = [
@@ -177,6 +189,10 @@ export default function VisualisePanel({ flow, files, onClose }) {
   // Panel-local dark/light toggle — does NOT touch the global app theme
   const [isDark, setIsDark] = useState(true);
   function toggleTheme() { setIsDark(n => !n); }
+
+  // Diagram canvas background
+  const [diagBg, setDiagBg] = useState(() => localStorage.getItem(BG_KEY) || "#0c0f1a");
+  useEffect(() => { localStorage.setItem(BG_KEY, diagBg); }, [diagBg]);
 
   // Diagram — raw SVG from Mermaid, display SVG with processed dimensions
   const [diagramSyntax, setDiagramSyntax] = useState("");
@@ -465,7 +481,7 @@ export default function VisualisePanel({ flow, files, onClose }) {
     canvas.width = w * scale; canvas.height = h * scale;
     const ctx = canvas.getContext("2d");
     ctx.scale(scale, scale);
-    ctx.fillStyle = "#0c0f1a";
+    ctx.fillStyle = diagBg;
     ctx.fillRect(0, 0, w, h);
 
     const serialized = new XMLSerializer().serializeToString(clone);
@@ -539,6 +555,18 @@ export default function VisualisePanel({ flow, files, onClose }) {
           <button className={`${styles.ctrlBtn} ${styles.ctrlDl}`} onClick={downloadAsPng} disabled={!displaySvg} title="Download diagram as PNG">
             <Download size={13}/> PNG
           </button>
+          <div className={styles.ctrlDiv}/>
+          <div className={styles.bgSwatches}>
+            {BG_PRESETS.map(p => (
+              <button
+                key={p.id}
+                className={`${styles.bgSwatch} ${diagBg === p.color ? styles.bgSwatchActive : ""}`}
+                style={{ background: p.color }}
+                onClick={() => setDiagBg(p.color)}
+                title={p.label}
+              />
+            ))}
+          </div>
           <span className={styles.zoomPct}>{Math.round(transform.scale * 100)}%</span>
           <div className={styles.ctrlDiv}/>
           <button className={styles.themeBtn} onClick={toggleTheme} title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
@@ -552,7 +580,7 @@ export default function VisualisePanel({ flow, files, onClose }) {
 
         {/* ── Left: diagram canvas ── */}
         <div className={styles.diagArea} ref={ctnRef}
-          style={{ background: "#0c0f1a" }}
+          style={{ backgroundColor: diagBg, backgroundImage: DOT_GRID, backgroundSize: "24px 24px" }}
           onWheel={onWheel} onMouseDown={onMD} onMouseMove={onMM} onMouseUp={onMU} onMouseLeave={onMU}>
 
           {/* Animated top bar while streaming */}
@@ -643,6 +671,7 @@ export default function VisualisePanel({ flow, files, onClose }) {
             <div
               ref={fsCtnRef}
               className={styles.fsDiagWrap}
+              style={{ backgroundColor: diagBg, backgroundImage: DOT_GRID, backgroundSize: "24px 24px" }}
               onWheel={onFsWheel}
               onMouseDown={onFsMD}
               onMouseMove={onFsMM}
