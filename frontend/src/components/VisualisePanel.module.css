@@ -149,18 +149,67 @@
   transform-origin: 0 0;
 }
 
-/* Mermaid node colour overrides */
+/* ── Mermaid node colour overrides (main + fullscreen) ─────────────────── */
 .diagInner :global(.node rect),
-.diagInner :global(.node circle),
 .diagInner :global(.node ellipse),
-.diagInner :global(.node polygon) {
-  fill: #1a2640 !important;
-  stroke: #3a5f9f !important;
+.diagInner :global(.node circle),
+.diagInner :global(.node polygon),
+.diagInner :global(.node path),
+.fsDiagInner :global(.node rect),
+.fsDiagInner :global(.node ellipse),
+.fsDiagInner :global(.node circle),
+.fsDiagInner :global(.node polygon),
+.fsDiagInner :global(.node path) {
+  fill: #1e3f72 !important;
+  stroke: #4a9eff !important;
+  stroke-width: 1.5px !important;
 }
-.diagInner :global(.node .label) { color: #c8d8ee !important; }
-.diagInner :global(.edgePath .path) { stroke: #4a7abf !important; stroke-width: 1.5px !important; }
-.diagInner :global(.edgeLabel) { background: transparent !important; color: #8fa2c8 !important; }
-.diagInner :global(.cluster rect) { fill: #111827 !important; stroke: #2a3f6f !important; rx: 6px !important; }
+.diagInner :global(.nodeLabel),
+.diagInner :global(.node .label),
+.diagInner :global(.node span),
+.fsDiagInner :global(.nodeLabel),
+.fsDiagInner :global(.node .label),
+.fsDiagInner :global(.node span) {
+  color: #d4dce8 !important;
+  fill: #d4dce8 !important;
+}
+.diagInner :global(.node text),
+.diagInner :global(.label text),
+.fsDiagInner :global(.node text),
+.fsDiagInner :global(.label text) {
+  fill: #d4dce8 !important;
+}
+.diagInner :global(.edgePath .path),
+.diagInner :global(.flowchart-link),
+.fsDiagInner :global(.edgePath .path),
+.fsDiagInner :global(.flowchart-link) {
+  stroke: #4a9eff !important;
+  stroke-width: 1.5px !important;
+}
+.diagInner :global(.arrowheadPath),
+.diagInner :global(.marker path),
+.fsDiagInner :global(.arrowheadPath),
+.fsDiagInner :global(.marker path) {
+  fill: #4a9eff !important;
+  stroke: none !important;
+}
+.diagInner :global(.edgeLabel .label rect),
+.diagInner :global(.edgeLabel rect),
+.fsDiagInner :global(.edgeLabel .label rect),
+.fsDiagInner :global(.edgeLabel rect) {
+  fill: rgba(12,15,26,0.85) !important;
+}
+.diagInner :global(.edgeLabel span),
+.diagInner :global(.edgeLabel .label div),
+.fsDiagInner :global(.edgeLabel span),
+.fsDiagInner :global(.edgeLabel .label div) {
+  color: #8fa2b6 !important;
+}
+.diagInner :global(.cluster rect),
+.fsDiagInner :global(.cluster rect) {
+  fill: rgba(30,63,114,0.2) !important;
+  stroke: rgba(74,158,255,0.35) !important;
+}
 
 /* Fullscreen inner */
 .fsDiagInner {
@@ -176,17 +225,6 @@
   height: auto;
   transform-origin: 0 0;
 }
-.fsDiagInner :global(.node rect),
-.fsDiagInner :global(.node circle),
-.fsDiagInner :global(.node ellipse),
-.fsDiagInner :global(.node polygon) {
-  fill: #1a2640 !important;
-  stroke: #3a5f9f !important;
-}
-.fsDiagInner :global(.node .label) { color: #c8d8ee !important; }
-.fsDiagInner :global(.edgePath .path) { stroke: #4a7abf !important; stroke-width: 1.5px !important; }
-.fsDiagInner :global(.edgeLabel) { background: transparent !important; color: #8fa2c8 !important; }
-.fsDiagInner :global(.cluster rect) { fill: #111827 !important; stroke: #2a3f6f !important; }
 
 /* ── Loading bar (streaming phase) ─────────────────────────────────────── */
 .loadBar {

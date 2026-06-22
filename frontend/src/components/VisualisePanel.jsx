@@ -1,40 +1,61 @@
 import { useEffect, useRef, useState, useCallback } from "react";
 import {
   ArrowLeft, GitBranch, Maximize2, Minimize2, RefreshCw,
-  ChevronLeft, MousePointer2,
+  LayoutGrid, AlignLeft, ChevronLeft, MousePointer2,
   Loader2, AlertCircle, Expand, Download,
 } from "lucide-react";
 import { badgeStyle } from "./dirBadge.js";
 import styles from "./VisualisePanel.module.css";
 
-// ── Mermaid lazy loader ───────────────────────────────────────────────────────
+// ── Mermaid singleton ─────────────────────────────────────────────────────────
 
 let _mermaid = null;
 async function getMermaid() {
   if (_mermaid) return _mermaid;
-  const m = await import("mermaid");
-  _mermaid = m.default;
-  _mermaid.initialize({
-    startOnLoad: false,
-    theme: "dark",
-    securityLevel: "loose",
-    flowchart: { useMaxWidth: false, htmlLabels: true, curve: "basis" },
-    fontSize: 14,
+  const m = await import("mermaid").then(mod => mod.default);
+  m.initialize({
+    startOnLoad: false, theme: "base",
+    themeVariables: {
+      primaryColor: "#1e3f72",
+      primaryTextColor: "#d4dce8",
+      primaryBorderColor: "#4a9eff", lineColor: "#4a9eff",
+      secondaryColor: "#162c4a",     tertiaryColor: "#111a28",
+      mainBkg: "transparent",        nodeBorder: "#4a9eff",
+      clusterBkg: "#111a28",         clusterBorder: "rgba(74,158,255,0.25)",
+      titleColor: "#8fa2b6",         edgeLabelBackground: "rgba(12,15,26,0.85)",
+      fontFamily: "Lexend, sans-serif",
+    },
   });
+  _mermaid = m;
   return _mermaid;
 }
 
 function cleanSyntax(raw) {
-  return raw.trim()
-    .replace(/^```(?:mermaid)?\s*\n?/, "")
-    .replace(/\n?```\s*$/, "")
-    .trim();
+  return raw.trim().replace(/^```(?:mermaid)?\s*\n?/, "").replace(/\n?```\s*$/, "").trim();
 }
 
-async function renderMermaid(syntax, containerId) {
-  const m = await getMermaid();
-  const { svg } = await m.render(containerId, syntax);
-  return svg;
+// Strip background/max-width from the SVG opening tag and set explicit pixel
+// dimensions from the viewBox so the fit math has a reliable natural size.
+function processSvg(svgHtml) {
+  const vbMatch = svgHtml.match(/viewBox="([^"]+)"/i);
+  if (!vbMatch) return svgHtml;
+  const parts = vbMatch[1].trim().split(/[\s,]+/).map(Number);
+  const vw = parts[2]; const vh = parts[3];
+  if (!vw || !vh || vw <= 0 || vh <= 0) return svgHtml;
+
+  return svgHtml.replace(/<svg[^>]+>/, (tag) => {
+    let t = tag
+      .replace(/\s+width="[^"]*"/gi, "")
+      .replace(/\s+height="[^"]*"/gi, "");
+    t = t.replace(/(style=")([^"]*)(")/, (_m, a, s, b) => {
+      const clean = s
+        .replace(/max-width\s*:\s*[^;]+;?\s*/gi, "")
+        .replace(/background(?:-color)?\s*:\s*[^;]+;?\s*/gi, "")
+        .trim().replace(/^;+|;+$/g, "").trim();
+      return `${a}${clean}${b}`;
+    });
+    return t.replace("<svg", `<svg width="${vw}" height="${vh}"`);
+  });
 }
 
 // ── SSE streaming hook ────────────────────────────────────────────────────────
@@ -255,6 +276,7 @@ function usePanZoom(svgWrapRef) {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function VisualisePanel({ flow, files, onClose }) {
+  // Mirror the global app theme (data-theme on <html>)
   const [isDark, setIsDark] = useState(() => document.documentElement.dataset.theme !== "light");
   useEffect(() => {
     const obs = new MutationObserver(() =>
@@ -264,20 +286,23 @@ export default function VisualisePanel({ flow, files, onClose }) {
     return () => obs.disconnect();
   }, []);
 
+  // Diagram canvas background
   const [diagBg, setDiagBg] = useState(() => localStorage.getItem(BG_KEY) || "#0c0f1a");
   useEffect(() => { localStorage.setItem(BG_KEY, diagBg); }, [diagBg]);
 
-  // Diagram state
-  const [displaySvg,     setDisplaySvg]     = useState("");
-  const [fsSvg,          setFsSvg]          = useState("");
+  // Diagram — raw LLM syntax, processed display SVG
+  const [diagramSyntax, setDiagramSyntax] = useState("");
+  const [displaySvg,    setDisplaySvg]    = useState("");
   const [diagramLoading, setDiagramLoading] = useState(true);
   const [diagramError,   setDiagramError]   = useState("");
+  const [direction,      setDirection]      = useState("LR");
   const [fullscreen,     setFullscreen]     = useState(false);
-  const [zoomPct,        setZoomPct]        = useState(100);
-  const [fsZoomPct,      setFsZoomPct]      = useState(100);
+  const renderIdRef  = useRef(0);
   const abortDiagRef = useRef(null);
 
-  // Pan/zoom refs
+  // Pan/zoom
+  const [zoomPct,   setZoomPct]   = useState(100);
+  const [fsZoomPct, setFsZoomPct] = useState(100);
   const mainWrapRef = useRef(null);
   const fsWrapRef   = useRef(null);
   const mainPZ = usePanZoom(mainWrapRef);
@@ -291,8 +316,11 @@ export default function VisualisePanel({ flow, files, onClose }) {
   const stS = useStream();
   const streamOf = { overview: ovS, mappings: mpS, checklist: ckS, failures: flS };
 
-  const [selNode, setSelNode] = useState(null);
-  const [prevTab, setPrevTab] = useState("overview");
+  // Node / step detail
+  const [selNode, setSelNode]   = useState(null);
+  const [prevTab, setPrevTab]   = useState("overview");
+  const syntaxRef = useRef("");
+  useEffect(() => { syntaxRef.current = diagramSyntax; }, [diagramSyntax]);
   const tabRef = useRef("overview");
   useEffect(() => { tabRef.current = tab; }, [tab]);
 
@@ -301,7 +329,7 @@ export default function VisualisePanel({ flow, files, onClose }) {
   async function genDiagram() {
     if (abortDiagRef.current) abortDiagRef.current.abort();
     const ctrl = new AbortController(); abortDiagRef.current = ctrl;
-    setDiagramLoading(true); setDisplaySvg(""); setFsSvg(""); setDiagramError("");
+    setDiagramLoading(true); setDiagramSyntax(""); setDisplaySvg(""); setDiagramError("");
     const form = new FormData();
     files.forEach(f => form.append("files", f));
     form.append("flow_json", JSON.stringify(flow));
@@ -322,26 +350,42 @@ export default function VisualisePanel({ flow, files, onClose }) {
           else if (ev.status === "error") { setDiagramError(ev.message); setDiagramLoading(false); return; }
         }
       }
-      const syntax = cleanSyntax(result);
-      try {
-        const svg = await renderMermaid(syntax, `mm-main-${Date.now()}`);
-        setDisplaySvg(svg);
-        setFsSvg(svg);
-        setDiagramLoading(false);
-      } catch (e) {
-        setDiagramError(`Diagram render error: ${e.message}`);
-        setDiagramLoading(false);
-      }
+      setDiagramSyntax(result);
+      // diagramLoading stays true until Mermaid rendering finishes (see render effect)
     } catch (e) {
       if (e.name !== "AbortError") { setDiagramError(e.message); setDiagramLoading(false); }
     }
   }
 
-  // ── Fit diagram after SVG injected ─────────────────────────────────────────
+  // ── Mermaid render (re-runs on syntax change OR direction toggle) ───────────
+
+  useEffect(() => {
+    if (!diagramSyntax) { setDisplaySvg(""); return; }
+    let cancelled = false;
+    const syntax = direction === "TD"
+      ? cleanSyntax(diagramSyntax).replace(/^flowchart\s+LR/m, "flowchart TD")
+      : cleanSyntax(diagramSyntax).replace(/^flowchart\s+TD/m, "flowchart LR");
+    renderIdRef.current += 1;
+    const id = `vp-render-${renderIdRef.current}`;
+    getMermaid().then(async mermaid => {
+      if (cancelled) return;
+      try {
+        const { svg: out } = await mermaid.render(id, syntax);
+        if (!cancelled) {
+          setDisplaySvg(processSvg(out));
+          setDiagramLoading(false);
+        }
+      } catch (e) {
+        if (!cancelled) { setDiagramError(`Render error: ${e.message}`); setDiagramLoading(false); }
+      }
+    });
+    return () => { cancelled = true; };
+  }, [diagramSyntax, direction]);
+
+  // ── Auto-fit after SVG is injected ─────────────────────────────────────────
 
   useEffect(() => {
     if (!displaySvg || !mainWrapRef.current) return;
-    // Wait one frame for DOM to paint the injected SVG
     const id = requestAnimationFrame(() => {
       const pct = mainPZ.fitToContainer();
       if (pct) setZoomPct(pct);
@@ -352,7 +396,7 @@ export default function VisualisePanel({ flow, files, onClose }) {
   }, [displaySvg]);
 
   useEffect(() => {
-    if (!fullscreen || !fsSvg || !fsWrapRef.current) return;
+    if (!fullscreen || !displaySvg || !fsWrapRef.current) return;
     const id = requestAnimationFrame(() => {
       const pct = fsPZ.fitToContainer();
       if (pct) setFsZoomPct(pct);
@@ -360,7 +404,36 @@ export default function VisualisePanel({ flow, files, onClose }) {
     });
     return () => cancelAnimationFrame(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fullscreen, fsSvg]);
+  }, [fullscreen, displaySvg]);
+
+  // ── Node click → step detail ────────────────────────────────────────────────
+
+  useEffect(() => {
+    if (!displaySvg || !mainWrapRef.current) return;
+    const nodes = Array.from(mainWrapRef.current.querySelectorAll(".node"));
+    nodes.forEach(n => { n.style.cursor = "pointer"; });
+    const handlers = nodes.map(node => {
+      const h = () => {
+        const label =
+          node.querySelector(".nodeLabel")?.textContent?.trim() ||
+          node.querySelector("foreignObject span")?.textContent?.trim() ||
+          node.querySelector("text")?.textContent?.trim() ||
+          node.id.replace(/^flowchart-/,"").replace(/-\d+$/,"").replace(/_/g," ");
+        if (!label) return;
+        setPrevTab(tabRef.current);
+        setSelNode({ id: node.id, label });
+        stS.reset();
+        stS.run("/api/generate-step-detail", files, flow, {
+          node_label: label,
+          diagram_syntax: cleanSyntax(syntaxRef.current),
+        });
+      };
+      node.addEventListener("click", h);
+      return { node, h };
+    });
+    return () => handlers.forEach(({ node, h }) => node.removeEventListener("click", h));
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [displaySvg]);
 
   // ── Tab generation ──────────────────────────────────────────────────────────
 
@@ -383,38 +456,84 @@ export default function VisualisePanel({ flow, files, onClose }) {
     if (!tabDone[key]) genTab(key);
   }
 
-  // ── Download ────────────────────────────────────────────────────────────────
+  // ── Download as PNG ─────────────────────────────────────────────────────────
 
   function downloadAsPng() {
-    if (!displaySvg) return;
-    const blob = new Blob([displaySvg], { type: "image/svg+xml" });
-    const url = URL.createObjectURL(blob);
+    if (!mainWrapRef.current) return;
+    const liveSvg = mainWrapRef.current.querySelector("svg");
+    if (!liveSvg) return;
+
+    // Clone the SVG — CSS module !important rules don't survive serialization,
+    // so bake computed fill/stroke/stroke-width as inline styles before export.
+    const clone = liveSvg.cloneNode(true);
+    const SHAPE_TAGS = new Set(["rect","ellipse","circle","polygon","polyline","path","line","text","tspan"]);
+    const liveAll  = liveSvg.querySelectorAll("*");
+    const cloneAll = clone.querySelectorAll("*");
+    liveAll.forEach((liveEl, i) => {
+      const cloneEl = cloneAll[i];
+      if (!cloneEl || !SHAPE_TAGS.has(liveEl.tagName.toLowerCase())) return;
+      const cs = window.getComputedStyle(liveEl);
+      const fill = cs.getPropertyValue("fill");
+      const stroke = cs.getPropertyValue("stroke");
+      const sw = cs.getPropertyValue("stroke-width");
+      if (fill !== "") cloneEl.style.setProperty("fill", fill);
+      if (stroke !== "") cloneEl.style.setProperty("stroke", stroke);
+      if (sw !== "") cloneEl.style.setProperty("stroke-width", sw);
+    });
+
+    // Replace <foreignObject> (blocked by canvas security) with plain SVG <text>
+    clone.querySelectorAll("foreignObject").forEach(fo => {
+      const text = (fo.textContent || "").replace(/\s+/g, " ").trim();
+      const x = parseFloat(fo.getAttribute("x") || "0") + parseFloat(fo.getAttribute("width") || "0") / 2;
+      const y = parseFloat(fo.getAttribute("y") || "0") + parseFloat(fo.getAttribute("height") || "0") / 2;
+      if (!text) { fo.remove(); return; }
+      const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      t.setAttribute("x", String(x));
+      t.setAttribute("y", String(y));
+      t.setAttribute("text-anchor", "middle");
+      t.setAttribute("dominant-baseline", "central");
+      t.setAttribute("fill", "#d4dce8");
+      t.setAttribute("font-size", "13");
+      t.setAttribute("font-family", "Lexend, Arial, sans-serif");
+      t.textContent = text;
+      fo.parentNode?.replaceChild(t, fo);
+    });
+
+    const vb = liveSvg.viewBox?.baseVal;
+    const w = vb?.width || 1200;
+    const h = vb?.height || 600;
+    const scale = 2;
+    const canvas = document.createElement("canvas");
+    canvas.width = w * scale; canvas.height = h * scale;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(scale, scale);
+    ctx.fillStyle = diagBg;
+    ctx.fillRect(0, 0, w, h);
+
+    const serialized = new XMLSerializer().serializeToString(clone);
+    const encoded = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(serialized)}`;
+
     const img = new Image();
     img.onload = () => {
-      const scale = 2;
-      const w = img.naturalWidth || 1200;
-      const h = img.naturalHeight || 600;
-      const canvas = document.createElement("canvas");
-      canvas.width = w * scale; canvas.height = h * scale;
-      const ctx = canvas.getContext("2d");
-      ctx.scale(scale, scale);
-      ctx.fillStyle = diagBg;
-      ctx.fillRect(0, 0, w, h);
       ctx.drawImage(img, 0, 0, w, h);
       const a = document.createElement("a");
       a.download = `${flow.name}-iflow.png`;
       a.href = canvas.toDataURL("image/png");
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      URL.revokeObjectURL(url);
     };
     img.onerror = () => {
+      const blob = new Blob([serialized], { type: "image/svg+xml" });
+      const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.download = `${flow.name}-iflow.svg`;
       a.href = url;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
     };
-    img.src = url;
+    img.src = encoded;
   }
+
+  function toggleDir() { setDirection(d => d === "LR" ? "TD" : "LR"); }
 
   const isBusy = diagramLoading || (!displaySvg && !diagramError);
   const activeStream = selNode ? stS : (streamOf[tab] || ovS);
@@ -431,6 +550,10 @@ export default function VisualisePanel({ flow, files, onClose }) {
           <span className={styles.dirBadge} style={badgeStyle(flow.direction)}>{flow.direction}</span>
         </div>
         <div className={styles.headerControls}>
+          <button className={`${styles.ctrlBtn} ${direction==="TD"?styles.ctrlActive:""}`} onClick={toggleDir} title="Toggle layout direction">
+            {direction==="LR" ? <LayoutGrid size={13}/> : <AlignLeft size={13}/>}
+            {direction==="LR" ? "Top-Down" : "Left-Right"}
+          </button>
           <button className={styles.ctrlBtn} onClick={() => { const p = mainPZ.fitToContainer(); if (p) setZoomPct(p); }} title="Fit to screen"><Maximize2 size={13}/> Fit</button>
           <button className={styles.ctrlBtn} onClick={() => { mainPZ.resetZoom(); setZoomPct(100); }} title="Reset zoom"><Minimize2 size={13}/> Reset</button>
           <button className={`${styles.ctrlBtn} ${styles.ctrlRegen}`} onClick={genDiagram} disabled={isBusy} title="Regenerate">
@@ -481,7 +604,6 @@ export default function VisualisePanel({ flow, files, onClose }) {
             </div>
           )}
 
-          {/* Mermaid SVG pan/zoom container */}
           <div
             ref={mainWrapRef}
             className={styles.diagInner}
@@ -495,7 +617,7 @@ export default function VisualisePanel({ flow, files, onClose }) {
           )}
 
           {displaySvg && !diagramError && (
-            <div className={styles.diagHint}><MousePointer2 size={11}/> Drag to pan · Scroll to zoom</div>
+            <div className={styles.diagHint}><MousePointer2 size={11}/> Drag to pan · Scroll to zoom · Click node for details</div>
           )}
         </div>
 
@@ -554,7 +676,7 @@ export default function VisualisePanel({ flow, files, onClose }) {
               <div
                 ref={fsWrapRef}
                 className={styles.fsDiagInner}
-                dangerouslySetInnerHTML={fsSvg ? { __html: fsSvg } : undefined}
+                dangerouslySetInnerHTML={displaySvg ? { __html: displaySvg } : undefined}
               />
             </div>
           </div>
