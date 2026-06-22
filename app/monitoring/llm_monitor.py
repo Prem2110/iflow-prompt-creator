@@ -39,9 +39,11 @@ _TYPE_A     = os.environ.get("LLM_USAGE_MONITOR_CALL_TYPE_A_INVOKE", "a_invoke")
 def _post(call_type: str, payload: dict) -> None:
     """Synchronous POST — runs inside a daemon thread, never raises."""
     if not _BASE_URL:
+        logger.warning("LLM monitor: _BASE_URL not set — skipping %s", call_type)
         return
     try:
         url = f"{_BASE_URL}/log-metadata/"
+        logger.info("LLM monitor → POST %s  call_type=%s  app_id=%s", url, call_type, _APP_ID)
         resp = httpx.post(
             url,
             params={
@@ -52,14 +54,15 @@ def _post(call_type: str, payload: dict) -> None:
             headers={"Authorization": f"Bearer {_API_KEY}"},
             json={"metadata": payload},
             timeout=10,
+            follow_redirects=True,
         )
         if not resp.is_success:
             logger.warning(
                 "LLM monitor POST failed [%s %s]: %s",
-                call_type, resp.status_code, resp.text[:300],
+                call_type, resp.status_code, resp.text[:500],
             )
         else:
-            logger.debug("LLM monitor POST ok [%s]", call_type)
+            logger.info("LLM monitor POST ok [%s] status=%s", call_type, resp.status_code)
     except Exception as exc:
         logger.warning("LLM monitor POST error [%s]: %s", call_type, exc)
 
@@ -67,9 +70,26 @@ def _post(call_type: str, payload: dict) -> None:
 def _fire(call_type: str, payload: dict) -> None:
     """Spawn a daemon thread for the POST so the caller is never blocked."""
     if not _BASE_URL:
+        logger.warning("LLM monitor: _BASE_URL not configured — %s skipped", call_type)
         return
+    logger.info("LLM monitor: firing %s", call_type)
     t = threading.Thread(target=_post, args=(call_type, payload), daemon=True)
     t.start()
+
+
+def probe() -> None:
+    """
+    Synchronous connectivity check — call once at startup to surface config
+    problems early. Sends a minimal ping payload to the monitor.
+    """
+    if not _BASE_URL:
+        logger.warning("LLM monitor: disabled (LLM_USAGE_MONITOR_BASE_URL not set)")
+        return
+    logger.info("LLM monitor: probing %s/log-metadata/ …", _BASE_URL)
+    _post("probe", {"content": "startup-probe", "type": "ai", "model_name": _MODEL_NAME,
+                    "tool_calls": [], "invalid_tool_calls": [], "additional_kwargs": {},
+                    "response_metadata": {}, "usage_metadata": {"input_tokens": 0,
+                    "output_tokens": 0, "total_tokens": 0}})
 
 
 def _to_ai_message_dict(response_data: dict) -> dict:
