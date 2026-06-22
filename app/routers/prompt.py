@@ -1027,6 +1027,14 @@ STRICT RULES
    reference it from a <callActivity calledElement="Proc_LIP_[name]"> in the main process.
 10. Do NOT output any <bpmndi:*> elements.
 11. Output ONLY the XML — start directly with <?xml version="1.0"
+12. NAME LENGTH RULE — CRITICAL: Every element name MUST be 3 words or fewer (max 20 characters).
+    Abbreviate aggressively. Examples of correct names:
+      GOOD: "Set Headers", "Map to BAPI", "Call S4HANA", "CSRF Token", "Log Error",
+            "Split Items", "Aggregate", "Check Status", "Fetch WO Data", "Convert XML"
+      BAD (too long): "Set HTTP Headers and Exchange Properties", "POST SAP MaintenanceOrder",
+                      "Extract SAP Maintenance Order Number from Response"
+    The startEvent and endEvent may include a system name in brackets but still keep to ≤25 chars total,
+    e.g. "[IFS Cloud] Timer" or "To SAP S/4HANA".
 """
 
 _DIAGRAM_SUFFIX = "\n\nGenerate the BPMN 2.0 XML diagram for the SAP CPI iFlow described in the content above. Output ONLY the XML starting with <?xml — no preamble, no fences."

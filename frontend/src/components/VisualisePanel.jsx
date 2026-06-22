@@ -26,9 +26,25 @@ function cleanXml(raw) {
     .trim();
 }
 
+// Scale all coordinate/size attributes in the BPMNDiagram section so elements
+// are large enough for labels. bpmn-auto-layout hardcodes tasks at 100×80px
+// which is too small — scaling by 1.6 gives 160×128px tasks with room to breathe.
+function scaleBpmnDiagram(xml, factor) {
+  const marker = "<bpmndi:BPMNDiagram";
+  const start = xml.indexOf(marker);
+  if (start === -1) return xml;
+  const head = xml.slice(0, start);
+  const diagram = xml.slice(start).replace(
+    /(x|y|width|height)="([\d.]+)"/g,
+    (_, attr, val) => `${attr}="${Math.round(parseFloat(val) * factor)}"`
+  );
+  return head + diagram;
+}
+
 async function applyAutoLayout(xml) {
   const { layoutProcess } = await import("bpmn-auto-layout");
-  return await layoutProcess(xml);
+  const laid = await layoutProcess(xml);
+  return scaleBpmnDiagram(laid, 1.6);
 }
 
 // ── SSE streaming hook ────────────────────────────────────────────────────────
