@@ -898,158 +898,158 @@ async def discover_flows(files: List[UploadFile] = File(...)):
 
 # ── Diagram endpoint ──────────────────────────────────────────────────────────
 
-_DIAGRAM_SYSTEM = """You are an SAP CPI integration architect generating a Mermaid.js flowchart.
+_DIAGRAM_SYSTEM = """You are an SAP CPI integration architect generating a BPMN 2.0 XML diagram.
 
-Analyse the provided integration documentation and output a COMPLETE, valid Mermaid flowchart LR
-diagram covering every SAP CPI component found in the documents.
+Analyse the provided integration documentation and output a complete, valid BPMN 2.0 XML document
+representing the SAP CPI iFlow as a BPMN Collaboration with three pools:
+  1. The Sender (source system)
+  2. SAP CPI Integration Process (all processing steps)
+  3. The Receiver (target system)
 
-Output ONLY valid Mermaid flowchart syntax — no preamble, no explanation, no markdown fences.
-The very first line must be:  flowchart LR
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 1 — COLOUR CLASS DEFINITIONS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Immediately after "flowchart LR", emit these classDef lines exactly as shown:
-
-classDef adapter   fill:#102a4a,stroke:#4a9eff,stroke-width:1.5px,color:#d4dce8
-classDef event     fill:#0f1a2a,stroke:#60a5fa,stroke-width:1.5px,color:#a0c4ff
-classDef mapping   fill:#0f2a1a,stroke:#4ade80,stroke-width:1.5px,color:#bbf7d0
-classDef script    fill:#2a1e00,stroke:#f59e0b,stroke-width:1.5px,color:#fde68a
-classDef router    fill:#2a1600,stroke:#fb923c,stroke-width:1.5px,color:#fed7aa
-classDef splitter  fill:#1a0a2e,stroke:#a78bfa,stroke-width:1.5px,color:#ddd6fe
-classDef enrich    fill:#0a2a2e,stroke:#22d3ee,stroke-width:1.5px,color:#a5f3fc
-classDef datastore fill:#1a1a2a,stroke:#6b7280,stroke-width:1.5px,color:#d1d5db
-classDef security  fill:#0a1a2a,stroke:#94a3b8,stroke-width:1.5px,color:#cbd5e1
-classDef error     fill:#2a0a0a,stroke:#ef4444,stroke-width:1.5px,color:#fca5a5
-classDef proc      fill:#1e3f72,stroke:#4a9eff,stroke-width:1.5px,color:#d4dce8
+Output ONLY valid BPMN 2.0 XML starting with <?xml version="1.0".
+No preamble, no explanation, no markdown fences.
+Do NOT include any <bpmndi:BPMNDiagram>, <bpmndi:BPMNShape>, or <bpmndi:BPMNEdge> elements —
+layout coordinates are computed automatically after generation.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 2 — TOP-LEVEL SUBGRAPH STRUCTURE
+REQUIRED SKELETON
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Always emit these four top-level subgraphs in this order:
 
-  subgraph SOURCE["🖥 <actual source system name>"]
-    ... sender adapter node(s) ...
-  end
+<?xml version="1.0" encoding="UTF-8"?>
+<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             targetNamespace="http://sap.com/cpi/iflow"
+             id="Definitions_1">
 
-  subgraph IFLOW["⚙️ SAP CPI iFlow"]
-    ... all CPI processing nodes in execution order ...
-    ... nested LOCAL INTEGRATION PROCESS subgraphs go here (see STEP 4) ...
-  end
+  <collaboration id="Collab_1">
+    <participant id="Part_Sender" name="[Source System] (Sender)" processRef="Proc_Sender"/>
+    <participant id="Part_CPI"    name="SAP CPI Integration Process" processRef="Proc_CPI"/>
+    <participant id="Part_Recv"   name="[Target System] (Receiver)" processRef="Proc_Recv"/>
+    <!-- messageFlow: connect sender participant → CPI start event, and CPI end event → receiver participant -->
+    <messageFlow id="MF_In"  sourceRef="Part_Sender" targetRef="Start_1"/>
+    <messageFlow id="MF_Out" sourceRef="End_1"       targetRef="Part_Recv"/>
+  </collaboration>
 
-  subgraph TARGET["🎯 <actual target system name>"]
-    ... receiver adapter node(s) ...
-  end
+  <!-- Empty process stubs for sender and receiver pools -->
+  <process id="Proc_Sender" isExecutable="false"/>
+  <process id="Proc_Recv"   isExecutable="false"/>
 
-  subgraph EXCEPTION["🚨 Exception Subprocess"]
-    exc_start(["⚠️ Error Start"])
-    exc_log["📋 Log Error"]
-    exc_notify["📧 Send Alert"]
-    exc_end(["🔴 Error End"])
-    exc_start --> exc_log --> exc_notify --> exc_end
-  end
+  <!-- Main SAP CPI integration process -->
+  <process id="Proc_CPI" isExecutable="true">
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 3 — NODE SHAPES, ICON PREFIXES AND CLASSES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Pick the correct shape, icon and class for every SAP CPI component:
+    <startEvent id="Start_1" name="[Start label]">
+      <outgoing>F_1</outgoing>
+      <!-- For Timer Start add: <timerEventDefinition id="TimerDef_1"/> -->
+    </startEvent>
 
-COMPONENT                  SHAPE SYNTAX                               CLASS
-─────────────────────────────────────────────────────────────────────────────
-Start Event                id(["▶ Start"])                            event
-End Event                  id(["⏹ End"])                              event
-Timer / Scheduler          id(["⏱ Timer"])                            event
-Sender Adapter             id[/"📥 HTTPS Sender"/]                    adapter
-Receiver Adapter           id[/"📤 OData Receiver"/]                  adapter
-Content Modifier           id["✏️ Content Modifier"]                   proc
-Filter                     id["🔍 Filter"]                            proc
-Write Variables            id["📝 Write Variables"]                   proc
-Send Step                  id["📨 Send"]                              proc
-Message Mapping            id["📄 Message Mapping"]                   mapping
-XSLT Mapping               id["🔄 XSLT Mapping"]                      mapping
-Value Mapping              id["🗺 Value Mapping"]                     mapping
-XML-to-JSON Converter      id["🔄 XML to JSON"]                       mapping
-JSON-to-XML Converter      id["🔄 JSON to XML"]                       mapping
-CSV-to-XML Converter       id["🔄 CSV to XML"]                        mapping
-XML Validator              id["✅ XML Validator"]                      mapping
-EDI Validator              id["✅ EDI Validator"]                      mapping
-Groovy Script              id["📜 Groovy Script"]                     script
-JavaScript Script          id["📜 JS Script"]                         script
-Router                     id{"🔀 Router"}                            router
-Splitter (General)         id[/"⚡ Splitter"/]                        splitter
-Splitter (IDoc / CSV / Zip) id[/"⚡ IDoc Splitter"/]                  splitter
-Gather / Aggregator        id[/"🔗 Gather"/]                          splitter
-Multicast                  id{"📡 Multicast"}                         splitter
-Parallel Multicast         id{"📡 Parallel Multicast"}                splitter
-Request-Reply              id["🔁 Request-Reply"]                     enrich
-Content Enricher           id["➕ Content Enricher"]                  enrich
-Polling Consumer           id(["🔄 Polling Consumer"])                enrich
-Data Store Write           id[("🗄 Data Store Write")]                datastore
-Data Store Get             id[("🗄 Data Store Get")]                  datastore
-Data Store Select          id[("🗄 Data Store Select")]               datastore
-Data Store Delete          id[("🗄 Data Store Delete")]               datastore
-Process Call               id[["📞 Process Call"]]                    proc
-CSRF Token Handler         id["🛡 CSRF Token"]                        security
-Encryptor                  id["🔒 Encryptor"]                         security
-Decryptor                  id["🔓 Decryptor"]                         security
-PGP Signer                 id["🔏 PGP Signer"]                        security
-PGP Verifier               id["🔏 PGP Verifier"]                      security
-Message Digest             id["🔑 Message Digest"]                    security
-Error Start                id(["⚠️ Error Start"])                     error
-Error End                  id(["🔴 Error End"])                        error
-Error logging step         id["📋 Log Error"]                         error
-Alert / notify step        id["📧 Send Alert"]                        error
+    <!-- Add ONE element per SAP CPI step, in execution order -->
+    <task id="Step_1" name="[Step name]">
+      <incoming>F_1</incoming>
+      <outgoing>F_2</outgoing>
+    </task>
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 4 — LOCAL INTEGRATION PROCESSES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-For every Local Integration Process (LIP) found in the documents, add a nested subgraph
-INSIDE the IFLOW subgraph, and connect it via a Process Call node:
+    <!-- ... more steps ... -->
 
-  pc_lip_name[["📞 Process Call"]]
-  subgraph LIP_lip_name["📦 Local Process: <LIP name>"]
-    ... nodes that belong to this LIP in order ...
-  end
-  pc_lip_name --> lip_first_node
+    <endEvent id="End_1" name="End">
+      <incoming>F_N</incoming>
+    </endEvent>
+
+    <!-- Sequence flows — one <sequenceFlow> per directed connection -->
+    <sequenceFlow id="F_1" sourceRef="Start_1" targetRef="Step_1"/>
+    <!-- ... -->
+
+    <!-- Exception Subprocess — ALWAYS include for SAP CPI iFlows -->
+    <subProcess id="Exc_Sub" name="Exception Subprocess" triggeredByEvent="true">
+      <startEvent id="Exc_Start" name="Error Start">
+        <errorEventDefinition id="ErrDef_1"/>
+        <outgoing>EF_1</outgoing>
+      </startEvent>
+      <task id="Exc_Log" name="Log Error">
+        <incoming>EF_1</incoming>
+        <outgoing>EF_2</outgoing>
+      </task>
+      <task id="Exc_Alert" name="Send Alert">
+        <incoming>EF_2</incoming>
+        <outgoing>EF_3</outgoing>
+      </task>
+      <endEvent id="Exc_End" name="Error End">
+        <errorEventDefinition id="ErrEndDef_1"/>
+        <incoming>EF_3</incoming>
+      </endEvent>
+      <sequenceFlow id="EF_1" sourceRef="Exc_Start"  targetRef="Exc_Log"/>
+      <sequenceFlow id="EF_2" sourceRef="Exc_Log"    targetRef="Exc_Alert"/>
+      <sequenceFlow id="EF_3" sourceRef="Exc_Alert"  targetRef="Exc_End"/>
+    </subProcess>
+
+    <!-- Boundary error event — attach to a major serviceTask or the first task -->
+    <boundaryEvent id="Bound_Err" attachedToRef="Step_1" cancelActivity="true">
+      <errorEventDefinition id="BoundErrDef_1"/>
+      <outgoing>BF_1</outgoing>
+    </boundaryEvent>
+    <sequenceFlow id="BF_1" sourceRef="Bound_Err" targetRef="Exc_Sub"/>
+
+  </process>
+</definitions>
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 5 — EDGES
+SAP CPI COMPONENT → BPMN ELEMENT MAPPING
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- Use --> for all connections
-- Label adapter/channel edges with the protocol:  -->|"OData V2"| next_node
-  Allowed labels: "HTTPS", "OData V2", "OData V4", "REST", "SOAP", "RFC",
-                  "IDoc", "SFTP", "FTP", "Mail", "JDBC", "JMS", "AS2", "AS4",
-                  "SuccessFactors", "Ariba"
-- Splitter/Multicast fan-out — draw one edge per branch, reconverge at Gather:
-    split_node --> branch_a_step1
-    split_node --> branch_b_step1
-    branch_a_last --> gather_node
-    branch_b_last --> gather_node
-- Router branches — draw one edge per condition with a short label:
-    router_node -->|"Condition A"| path_a_node
-    router_node -->|"Default"| path_b_node
+
+SAP CPI Component          BPMN Element
+────────────────────────────────────────────────────────────────────
+Timer Start                <startEvent> + <timerEventDefinition/>
+HTTPS Sender / HTTP        <startEvent> (linked from Part_Sender via messageFlow)
+Generic Start              <startEvent>
+Content Modifier           <task>
+Filter                     <task>  name="Filter: [condition]"
+Write Variables            <task>  name="Write Variables"
+Groovy Script              <scriptTask>
+JavaScript Script          <scriptTask>
+Message Mapping            <task>  name="Map: [source→target]"
+XSLT Mapping               <task>  name="XSLT: [name]"
+XML/JSON Converter         <task>  name="Convert: XML→JSON" (or similar)
+Request-Reply              <serviceTask>
+OData Receiver             <serviceTask>  name="Call [System]: [operation]"
+HTTP Receiver              <serviceTask>
+SOAP Receiver              <serviceTask>
+RFC Receiver               <serviceTask>
+SFTP Sender/Receiver       <serviceTask>
+Router (XOR)               <exclusiveGateway>
+Router (AND/Parallel)      <parallelGateway>
+Splitter                   <task>  name="Splitter: [type]"
+Gather / Aggregator        <task>  name="Aggregator"
+Data Store Write/Read      <task>  name="Data Store: [op]"
+CSRF Token Handler         <task>  name="CSRF Token Handler"
+Process Call (LIP)         <callActivity calledElement="[process_id]"/>
+Exception Subprocess       <subProcess triggeredByEvent="true">
+Error Start Event          <startEvent> + <errorEventDefinition/>
+Error End Event            <endEvent>   + <errorEventDefinition/>
+Error Boundary Event       <boundaryEvent attachedToRef="[taskId]"> + <errorEventDefinition/>
+End                        <endEvent>
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STEP 6 — CLASS ASSIGNMENT BLOCK
+STRICT RULES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-After ALL nodes and edges, emit one `class` assignment line per colour class used:
-  class node_a,node_b adapter
-  class node_c,node_d,node_e mapping
-  class exc_start,exc_end,exc_log,exc_notify error
-(Only include classes that actually have nodes assigned to them.)
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-RULES
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- Include EVERY significant component found in the documents
-- ALWAYS include the Exception Subprocess subgraph — it is a mandatory SAP CPI construct
-- Wrap each Local Integration Process in its own nested subgraph inside IFLOW
-- Node IDs: short snake_case, no spaces (e.g. cm_set_headers, rr_call_sap, ds_write_order)
-- Node labels: 2–5 words max; use \\n for a second line if needed
-- Do NOT output anything outside of valid Mermaid syntax
+1. ALL element ids must be unique across the entire document. Use descriptive snake_case
+   (e.g. Task_SetHeaders, GW_CheckStatus, Start_Timer, Srv_CallSAP).
+2. EVERY task/gateway/subprocess needs at least one <incoming> AND one <outgoing> — EXCEPT:
+   - <startEvent>: only <outgoing> (no <incoming>)
+   - <endEvent>: only <incoming> (no <outgoing>)
+   - <boundaryEvent>: only <outgoing> (no <incoming>)
+3. EVERY <sequenceFlow> must reference existing element ids within the SAME <process>.
+   Cross-process flows use <messageFlow> inside <collaboration>.
+4. <messageFlow> must be inside <collaboration> and reference participant ids or boundary elements.
+5. The exception subprocess MUST be connected to the main flow via a <boundaryEvent> on a task.
+6. For each Router (exclusiveGateway): draw one <sequenceFlow> per branch with a name attribute,
+   and all branches must converge at a subsequent gateway or end event.
+7. For Local Integration Processes: add a separate <process id="Proc_LIP_[name]"> and reference
+   it from a <callActivity calledElement="Proc_LIP_[name]"> in the main process.
+8. Element names: 3–6 words max. Be specific — include the adapter type or operation.
+9. Do NOT output any <bpmndi:*> elements.
+10. Output ONLY the XML document — start directly with <?xml version="1.0"
 """
 
-_DIAGRAM_SUFFIX = "\n\nGenerate the Mermaid.js flowchart LR diagram syntax for the iFlow described in the content above."
+_DIAGRAM_SUFFIX = "\n\nGenerate the BPMN 2.0 XML diagram for the SAP CPI iFlow described in the content above. Output ONLY the XML starting with <?xml — no preamble, no fences."
 
 
 async def _stream_diagram(files: List[UploadFile], flow=None) -> AsyncGenerator[str, None]:
@@ -1434,7 +1434,7 @@ async def generate_step_detail(
     flow = json.loads(flow_json)
     ctx = f"NODE TO EXPLAIN: {node_label}\n"
     if diagram_syntax.strip():
-        ctx += f"\nFULL DIAGRAM CONTEXT (Mermaid syntax):\n{diagram_syntax}\n"
+        ctx += f"\nFULL DIAGRAM CONTEXT (BPMN 2.0 XML):\n{diagram_syntax}\n"
     ctx += "\n"
     return StreamingResponse(
         _stream_analysis(files, flow, _STEP_DETAIL_SYSTEM, _STEP_DETAIL_SUFFIX,
