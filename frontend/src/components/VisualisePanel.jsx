@@ -7,44 +7,34 @@ import {
 import { badgeStyle } from "./dirBadge.js";
 import styles from "./VisualisePanel.module.css";
 
-// ── bpmn-js + auto-layout lazy loaders ────────────────────────────────────────
+// ── Mermaid lazy loader ───────────────────────────────────────────────────────
 
-let _BpmnViewer = null;
-async function getBpmnViewer() {
-  if (_BpmnViewer) return _BpmnViewer;
-  const { default: BV } = await import("bpmn-js/lib/NavigatedViewer");
-  await import("bpmn-js/dist/assets/diagram-js.css");
-  await import("bpmn-js/dist/assets/bpmn-font/css/bpmn-embedded.css");
-  _BpmnViewer = BV;
-  return BV;
+let _mermaid = null;
+async function getMermaid() {
+  if (_mermaid) return _mermaid;
+  const m = await import("mermaid");
+  _mermaid = m.default;
+  _mermaid.initialize({
+    startOnLoad: false,
+    theme: "dark",
+    securityLevel: "loose",
+    flowchart: { useMaxWidth: false, htmlLabels: true, curve: "basis" },
+    fontSize: 14,
+  });
+  return _mermaid;
 }
 
-function cleanXml(raw) {
+function cleanSyntax(raw) {
   return raw.trim()
-    .replace(/^```(?:xml)?\s*\n?/, "")
+    .replace(/^```(?:mermaid)?\s*\n?/, "")
     .replace(/\n?```\s*$/, "")
     .trim();
 }
 
-// Scale all coordinate/size attributes in the BPMNDiagram section so elements
-// are large enough for labels. bpmn-auto-layout hardcodes tasks at 100×80px
-// which is too small — scaling by 1.6 gives 160×128px tasks with room to breathe.
-function scaleBpmnDiagram(xml, factor) {
-  const marker = "<bpmndi:BPMNDiagram";
-  const start = xml.indexOf(marker);
-  if (start === -1) return xml;
-  const head = xml.slice(0, start);
-  const diagram = xml.slice(start).replace(
-    /(x|y|width|height)="([\d.]+)"/g,
-    (_, attr, val) => `${attr}="${Math.round(parseFloat(val) * factor)}"`
-  );
-  return head + diagram;
-}
-
-async function applyAutoLayout(xml) {
-  const { layoutProcess } = await import("bpmn-auto-layout");
-  const laid = await layoutProcess(xml);
-  return scaleBpmnDiagram(laid, 1.6);
+async function renderMermaid(syntax, containerId) {
+  const m = await getMermaid();
+  const { svg } = await m.render(containerId, syntax);
+  return svg;
 }
 
 // ── SSE streaming hook ────────────────────────────────────────────────────────
@@ -172,20 +162,99 @@ const TABS = [
   { key: "failures",  label: "Failure Modes",  ep: "/api/generate-failure-modes" },
 ];
 
-// Clickable BPMN element types for step-detail drill-down
-const CLICKABLE_TYPES = new Set([
-  "bpmn:Task", "bpmn:UserTask", "bpmn:ServiceTask", "bpmn:ScriptTask",
-  "bpmn:SendTask", "bpmn:ReceiveTask", "bpmn:BusinessRuleTask",
-  "bpmn:ExclusiveGateway", "bpmn:ParallelGateway", "bpmn:InclusiveGateway",
-  "bpmn:SubProcess", "bpmn:CallActivity",
-  "bpmn:StartEvent", "bpmn:EndEvent", "bpmn:BoundaryEvent",
-  "bpmn:IntermediateCatchEvent", "bpmn:IntermediateThrowEvent",
-]);
+// ── SVG pan/zoom helper ───────────────────────────────────────────────────────
+
+function usePanZoom(svgWrapRef) {
+  const stateRef = useRef({ scale: 1, tx: 0, ty: 0, dragging: false, sx: 0, sy: 0 });
+
+  const applyTransform = useCallback(() => {
+    const el = svgWrapRef.current?.querySelector("svg");
+    if (!el) return;
+    const { scale, tx, ty } = stateRef.current;
+    el.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+    el.style.transformOrigin = "0 0";
+  }, [svgWrapRef]);
+
+  const getZoomPct = useCallback(() => Math.round(stateRef.current.scale * 100), []);
+
+  const fitToContainer = useCallback(() => {
+    const wrap = svgWrapRef.current;
+    const svg  = wrap?.querySelector("svg");
+    if (!wrap || !svg) return;
+    const sw = svg.viewBox.baseVal.width  || svg.getBoundingClientRect().width;
+    const sh = svg.viewBox.baseVal.height || svg.getBoundingClientRect().height;
+    const cw = wrap.clientWidth;
+    const ch = wrap.clientHeight;
+    if (!sw || !sh) return;
+    const scale = Math.min(cw / sw, ch / sh) * 0.9;
+    stateRef.current.scale = scale;
+    stateRef.current.tx = (cw - sw * scale) / 2;
+    stateRef.current.ty = (ch - sh * scale) / 2;
+    applyTransform();
+    return Math.round(scale * 100);
+  }, [svgWrapRef, applyTransform]);
+
+  const resetZoom = useCallback(() => {
+    stateRef.current = { ...stateRef.current, scale: 1, tx: 0, ty: 0 };
+    applyTransform();
+  }, [applyTransform]);
+
+  const attachHandlers = useCallback((onZoomChange) => {
+    const wrap = svgWrapRef.current;
+    if (!wrap) return () => {};
+
+    function onWheel(e) {
+      e.preventDefault();
+      const rect = wrap.getBoundingClientRect();
+      const mx = e.clientX - rect.left;
+      const my = e.clientY - rect.top;
+      const delta = e.deltaY < 0 ? 1.1 : 0.91;
+      const s = stateRef.current;
+      const ns = Math.max(0.1, Math.min(5, s.scale * delta));
+      s.tx = mx - (mx - s.tx) * (ns / s.scale);
+      s.ty = my - (my - s.ty) * (ns / s.scale);
+      s.scale = ns;
+      applyTransform();
+      onZoomChange(Math.round(ns * 100));
+    }
+
+    function onMouseDown(e) {
+      if (e.button !== 0) return;
+      const s = stateRef.current;
+      s.dragging = true; s.sx = e.clientX - s.tx; s.sy = e.clientY - s.ty;
+      wrap.style.cursor = "grabbing";
+    }
+    function onMouseMove(e) {
+      const s = stateRef.current;
+      if (!s.dragging) return;
+      s.tx = e.clientX - s.sx; s.ty = e.clientY - s.sy;
+      applyTransform();
+    }
+    function onMouseUp() {
+      stateRef.current.dragging = false;
+      wrap.style.cursor = "grab";
+    }
+
+    wrap.addEventListener("wheel", onWheel, { passive: false });
+    wrap.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+    wrap.style.cursor = "grab";
+
+    return () => {
+      wrap.removeEventListener("wheel", onWheel);
+      wrap.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [svgWrapRef, applyTransform]);
+
+  return { fitToContainer, resetZoom, attachHandlers, getZoomPct };
+}
 
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function VisualisePanel({ flow, files, onClose }) {
-  // Mirror the global app theme (data-theme on <html>)
   const [isDark, setIsDark] = useState(() => document.documentElement.dataset.theme !== "light");
   useEffect(() => {
     const obs = new MutationObserver(() =>
@@ -195,12 +264,12 @@ export default function VisualisePanel({ flow, files, onClose }) {
     return () => obs.disconnect();
   }, []);
 
-  // Diagram canvas background
   const [diagBg, setDiagBg] = useState(() => localStorage.getItem(BG_KEY) || "#0c0f1a");
   useEffect(() => { localStorage.setItem(BG_KEY, diagBg); }, [diagBg]);
 
   // Diagram state
-  const [bpmnXml,        setBpmnXml]        = useState("");
+  const [displaySvg,     setDisplaySvg]     = useState("");
+  const [fsSvg,          setFsSvg]          = useState("");
   const [diagramLoading, setDiagramLoading] = useState(true);
   const [diagramError,   setDiagramError]   = useState("");
   const [fullscreen,     setFullscreen]     = useState(false);
@@ -208,11 +277,11 @@ export default function VisualisePanel({ flow, files, onClose }) {
   const [fsZoomPct,      setFsZoomPct]      = useState(100);
   const abortDiagRef = useRef(null);
 
-  // bpmn-js viewer refs
-  const mainContainerRef = useRef(null);
-  const mainViewerRef    = useRef(null);
-  const fsContainerRef   = useRef(null);
-  const fsViewerRef      = useRef(null);
+  // Pan/zoom refs
+  const mainWrapRef = useRef(null);
+  const fsWrapRef   = useRef(null);
+  const mainPZ = usePanZoom(mainWrapRef);
+  const fsPZ   = usePanZoom(fsWrapRef);
 
   // Right panel
   const [tab,      setTab]     = useState("overview");
@@ -222,9 +291,8 @@ export default function VisualisePanel({ flow, files, onClose }) {
   const stS = useStream();
   const streamOf = { overview: ovS, mappings: mpS, checklist: ckS, failures: flS };
 
-  // Node / step detail
-  const [selNode, setSelNode]   = useState(null);
-  const [prevTab, setPrevTab]   = useState("overview");
+  const [selNode, setSelNode] = useState(null);
+  const [prevTab, setPrevTab] = useState("overview");
   const tabRef = useRef("overview");
   useEffect(() => { tabRef.current = tab; }, [tab]);
 
@@ -233,7 +301,7 @@ export default function VisualisePanel({ flow, files, onClose }) {
   async function genDiagram() {
     if (abortDiagRef.current) abortDiagRef.current.abort();
     const ctrl = new AbortController(); abortDiagRef.current = ctrl;
-    setDiagramLoading(true); setBpmnXml(""); setDiagramError("");
+    setDiagramLoading(true); setDisplaySvg(""); setFsSvg(""); setDiagramError("");
     const form = new FormData();
     files.forEach(f => form.append("files", f));
     form.append("flow_json", JSON.stringify(flow));
@@ -254,12 +322,14 @@ export default function VisualisePanel({ flow, files, onClose }) {
           else if (ev.status === "error") { setDiagramError(ev.message); setDiagramLoading(false); return; }
         }
       }
-      const rawXml = cleanXml(result);
+      const syntax = cleanSyntax(result);
       try {
-        const laidXml = await applyAutoLayout(rawXml);
-        setBpmnXml(laidXml);
+        const svg = await renderMermaid(syntax, `mm-main-${Date.now()}`);
+        setDisplaySvg(svg);
+        setFsSvg(svg);
+        setDiagramLoading(false);
       } catch (e) {
-        setDiagramError(`Layout error: ${e.message}`);
+        setDiagramError(`Diagram render error: ${e.message}`);
         setDiagramLoading(false);
       }
     } catch (e) {
@@ -267,78 +337,30 @@ export default function VisualisePanel({ flow, files, onClose }) {
     }
   }
 
-  // ── bpmn-js viewer init ─────────────────────────────────────────────────────
-
-  async function initViewer(containerEl, viewerRef, xml, onZoom, isMain, isCancelled) {
-    if (viewerRef.current) { viewerRef.current.destroy(); viewerRef.current = null; }
-    if (!containerEl || !xml) return;
-    try {
-      const BpmnViewer = await getBpmnViewer();
-      if (isCancelled()) return;
-      const viewer = new BpmnViewer({ container: containerEl });
-      viewerRef.current = viewer;
-
-      viewer.get("eventBus").on("canvas.viewbox.changed", () => {
-        const z = viewer.get("canvas").zoom();
-        onZoom(Math.round(z * 100));
-      });
-
-      if (isMain) {
-        viewer.get("eventBus").on("element.click", (event) => {
-          const el = event.element;
-          const bo = el.businessObject;
-          if (!bo?.name || !CLICKABLE_TYPES.has(el.type)) return;
-          setPrevTab(tabRef.current);
-          setSelNode({ id: el.id, label: bo.name });
-          stS.reset();
-          stS.run("/api/generate-step-detail", files, flow, { node_label: bo.name });
-        });
-      }
-
-      await viewer.importXML(xml);
-      if (isCancelled()) { viewer.destroy(); viewerRef.current = null; return; }
-      viewer.get("canvas").zoom("fit-viewport");
-      if (isMain) setDiagramLoading(false);
-    } catch (e) {
-      if (!isCancelled() && isMain) { setDiagramError(`Render error: ${e.message}`); setDiagramLoading(false); }
-    }
-  }
-
-  // ── Viewer lifecycle effects ────────────────────────────────────────────────
+  // ── Fit diagram after SVG injected ─────────────────────────────────────────
 
   useEffect(() => {
-    if (!bpmnXml || !mainContainerRef.current) return;
-    let cancelled = false;
-    initViewer(mainContainerRef.current, mainViewerRef, bpmnXml, setZoomPct, true, () => cancelled);
-    return () => {
-      cancelled = true;
-      if (mainViewerRef.current) { mainViewerRef.current.destroy(); mainViewerRef.current = null; }
-    };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bpmnXml]);
-
-  useEffect(() => {
-    if (!fullscreen || !bpmnXml) return;
-    let cancelled = false;
+    if (!displaySvg || !mainWrapRef.current) return;
+    // Wait one frame for DOM to paint the injected SVG
     const id = requestAnimationFrame(() => {
-      if (!fsContainerRef.current || cancelled) return;
-      initViewer(fsContainerRef.current, fsViewerRef, bpmnXml, setFsZoomPct, false, () => cancelled);
+      const pct = mainPZ.fitToContainer();
+      if (pct) setZoomPct(pct);
+      mainPZ.attachHandlers(setZoomPct);
     });
-    return () => {
-      cancelled = true;
-      cancelAnimationFrame(id);
-      if (fsViewerRef.current) { fsViewerRef.current.destroy(); fsViewerRef.current = null; }
-    };
+    return () => cancelAnimationFrame(id);
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [fullscreen, bpmnXml]);
+  }, [displaySvg]);
 
-  // Cleanup on unmount
   useEffect(() => {
-    return () => {
-      if (mainViewerRef.current) mainViewerRef.current.destroy();
-      if (fsViewerRef.current) fsViewerRef.current.destroy();
-    };
-  }, []);
+    if (!fullscreen || !fsSvg || !fsWrapRef.current) return;
+    const id = requestAnimationFrame(() => {
+      const pct = fsPZ.fitToContainer();
+      if (pct) setFsZoomPct(pct);
+      fsPZ.attachHandlers(setFsZoomPct);
+    });
+    return () => cancelAnimationFrame(id);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fullscreen, fsSvg]);
 
   // ── Tab generation ──────────────────────────────────────────────────────────
 
@@ -361,47 +383,40 @@ export default function VisualisePanel({ flow, files, onClose }) {
     if (!tabDone[key]) genTab(key);
   }
 
-  // ── Viewer controls ─────────────────────────────────────────────────────────
+  // ── Download ────────────────────────────────────────────────────────────────
 
-  function fitView()   { mainViewerRef.current?.get("canvas").zoom("fit-viewport"); }
-  function resetZoom() { mainViewerRef.current?.get("canvas").zoom(1); }
-  function fsFit()     { fsViewerRef.current?.get("canvas").zoom("fit-viewport"); }
-
-  async function downloadAsPng() {
-    if (!mainViewerRef.current) return;
-    try {
-      const { svg } = await mainViewerRef.current.saveSVG();
-      const blob = new Blob([svg], { type: "image/svg+xml" });
-      const url = URL.createObjectURL(blob);
-      const img = new Image();
-      img.onload = () => {
-        const scale = 2;
-        const w = img.naturalWidth || 1200;
-        const h = img.naturalHeight || 600;
-        const canvas = document.createElement("canvas");
-        canvas.width = w * scale; canvas.height = h * scale;
-        const ctx = canvas.getContext("2d");
-        ctx.scale(scale, scale);
-        ctx.fillStyle = diagBg;
-        ctx.fillRect(0, 0, w, h);
-        ctx.drawImage(img, 0, 0, w, h);
-        const a = document.createElement("a");
-        a.download = `${flow.name}-iflow.png`;
-        a.href = canvas.toDataURL("image/png");
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-      };
-      img.onerror = () => {
-        const a = document.createElement("a");
-        a.download = `${flow.name}-iflow.svg`;
-        a.href = url;
-        document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      };
-      img.src = url;
-    } catch (e) { console.error("Download failed", e); }
+  function downloadAsPng() {
+    if (!displaySvg) return;
+    const blob = new Blob([displaySvg], { type: "image/svg+xml" });
+    const url = URL.createObjectURL(blob);
+    const img = new Image();
+    img.onload = () => {
+      const scale = 2;
+      const w = img.naturalWidth || 1200;
+      const h = img.naturalHeight || 600;
+      const canvas = document.createElement("canvas");
+      canvas.width = w * scale; canvas.height = h * scale;
+      const ctx = canvas.getContext("2d");
+      ctx.scale(scale, scale);
+      ctx.fillStyle = diagBg;
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      const a = document.createElement("a");
+      a.download = `${flow.name}-iflow.png`;
+      a.href = canvas.toDataURL("image/png");
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = () => {
+      const a = document.createElement("a");
+      a.download = `${flow.name}-iflow.svg`;
+      a.href = url;
+      document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    };
+    img.src = url;
   }
 
-  const isBusy = diagramLoading || (!bpmnXml && !diagramError);
+  const isBusy = diagramLoading || (!displaySvg && !diagramError);
   const activeStream = selNode ? stS : (streamOf[tab] || ovS);
 
   return (
@@ -416,13 +431,13 @@ export default function VisualisePanel({ flow, files, onClose }) {
           <span className={styles.dirBadge} style={badgeStyle(flow.direction)}>{flow.direction}</span>
         </div>
         <div className={styles.headerControls}>
-          <button className={styles.ctrlBtn} onClick={fitView}    title="Fit to screen"><Maximize2 size={13}/> Fit</button>
-          <button className={styles.ctrlBtn} onClick={resetZoom}  title="Reset zoom">  <Minimize2 size={13}/> Reset</button>
+          <button className={styles.ctrlBtn} onClick={() => { const p = mainPZ.fitToContainer(); if (p) setZoomPct(p); }} title="Fit to screen"><Maximize2 size={13}/> Fit</button>
+          <button className={styles.ctrlBtn} onClick={() => { mainPZ.resetZoom(); setZoomPct(100); }} title="Reset zoom"><Minimize2 size={13}/> Reset</button>
           <button className={`${styles.ctrlBtn} ${styles.ctrlRegen}`} onClick={genDiagram} disabled={isBusy} title="Regenerate">
             <RefreshCw size={13} className={isBusy ? styles.spin : ""}/>
             {isBusy ? "Generating…" : "Regenerate"}
           </button>
-          <button className={`${styles.ctrlBtn} ${styles.ctrlDl}`} onClick={downloadAsPng} disabled={!bpmnXml} title="Download diagram as PNG">
+          <button className={`${styles.ctrlBtn} ${styles.ctrlDl}`} onClick={downloadAsPng} disabled={!displaySvg} title="Download diagram as PNG">
             <Download size={13}/> PNG
           </button>
           <div className={styles.ctrlDiv}/>
@@ -449,10 +464,8 @@ export default function VisualisePanel({ flow, files, onClose }) {
           className={styles.diagArea}
           style={{ backgroundColor: diagBg, backgroundImage: getDotGrid(diagBg), backgroundSize: "20px 20px" }}
         >
-          {/* Loading bar while streaming */}
           {diagramLoading && <div className={styles.loadBar}/>}
 
-          {/* Loading / error overlay */}
           {isBusy && (
             <div className={styles.stateBox}>
               <Loader2 size={32} className={styles.spin} style={{ color: "#4a9eff" }}/>
@@ -468,18 +481,21 @@ export default function VisualisePanel({ flow, files, onClose }) {
             </div>
           )}
 
-          {/* bpmn-js renders into this container */}
-          <div ref={mainContainerRef} className={styles.bpmnCanvas}/>
+          {/* Mermaid SVG pan/zoom container */}
+          <div
+            ref={mainWrapRef}
+            className={styles.diagInner}
+            dangerouslySetInnerHTML={displaySvg ? { __html: displaySvg } : undefined}
+          />
 
-          {/* Expand to fullscreen button */}
-          {bpmnXml && !diagramError && (
+          {displaySvg && !diagramError && (
             <button className={styles.expandBtn} onClick={() => setFullscreen(true)} title="View fullscreen">
               <Expand size={14}/>
             </button>
           )}
 
-          {bpmnXml && !diagramError && (
-            <div className={styles.diagHint}><MousePointer2 size={11}/> Drag to pan · Scroll to zoom · Click element for details</div>
+          {displaySvg && !diagramError && (
+            <div className={styles.diagHint}><MousePointer2 size={11}/> Drag to pan · Scroll to zoom</div>
           )}
         </div>
 
@@ -528,14 +544,18 @@ export default function VisualisePanel({ flow, files, onClose }) {
           <div className={styles.fsBox} onClick={e => e.stopPropagation()}>
             <div className={styles.fsHeader}>
               <span className={styles.fsZoom}>{fsZoomPct}%</span>
-              <button className={styles.fsFitBtn} onClick={fsFit}>Fit</button>
+              <button className={styles.fsFitBtn} onClick={() => { const p = fsPZ.fitToContainer(); if (p) setFsZoomPct(p); }}>Fit</button>
               <button className={styles.fsClose} onClick={() => setFullscreen(false)}>✕</button>
             </div>
             <div
               className={styles.fsDiagWrap}
               style={{ backgroundColor: diagBg, backgroundImage: getDotGrid(diagBg), backgroundSize: "20px 20px" }}
             >
-              <div ref={fsContainerRef} className={styles.bpmnCanvas}/>
+              <div
+                ref={fsWrapRef}
+                className={styles.fsDiagInner}
+                dangerouslySetInnerHTML={fsSvg ? { __html: fsSvg } : undefined}
+              />
             </div>
           </div>
         </div>

@@ -898,146 +898,101 @@ async def discover_flows(files: List[UploadFile] = File(...)):
 
 # ── Diagram endpoint ──────────────────────────────────────────────────────────
 
-_DIAGRAM_SYSTEM = """You are an SAP CPI integration architect generating a BPMN 2.0 XML diagram.
+_DIAGRAM_SYSTEM = """You are an SAP CPI integration architect generating a Mermaid.js flowchart diagram.
 
-Analyse the provided integration documentation and output a complete, valid BPMN 2.0 XML document
-representing the SAP CPI iFlow as a single BPMN process. Use descriptive event names to make
-Sender and Receiver systems visible in the diagram.
+Analyse the provided integration documentation and output a Mermaid flowchart that represents
+the SAP CPI iFlow end-to-end, including the Sender, all processing steps, and the Receiver.
 
-Output ONLY valid BPMN 2.0 XML starting with <?xml version="1.0".
-No preamble, no explanation, no markdown fences.
-Do NOT include any <bpmndi:*> elements — layout coordinates are computed automatically.
+Output ONLY the Mermaid syntax — no preamble, no explanation, no markdown fences.
+Start directly with: flowchart TD
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-REQUIRED SKELETON
+REQUIRED STRUCTURE
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-<?xml version="1.0" encoding="UTF-8"?>
-<definitions xmlns="http://www.omg.org/spec/BPMN/20100524/MODEL"
-             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-             targetNamespace="http://sap.com/cpi/iflow"
-             id="Definitions_1">
+flowchart TD
+  %% Sender and Receiver as rounded rectangles
+  SENDER([\"Sender\\n[Source System]\"])
+  RECEIVER([\"Receiver\\n[Target System]\"])
 
-  <process id="Proc_CPI" name="SAP CPI Integration Process" isExecutable="true">
+  %% Main flow nodes
+  START([\"Start\"])
+  STEP1[\"Step Name\"]
+  ...
+  END([\"End\"])
 
-    <!-- START EVENT: name must identify the Sender system and trigger type -->
-    <!-- e.g.  name="[IFS Cloud] Timer Start"  or  name="[IFS Cloud] HTTPS Trigger" -->
-    <startEvent id="Start_1" name="[Source System + trigger]">
-      <outgoing>F_1</outgoing>
-      <!-- For a timer trigger add: <timerEventDefinition id="TimerDef_1"/> -->
-    </startEvent>
+  %% Exception subprocess as a subgraph
+  subgraph EXC [\" Exception Subprocess\"]
+    EXC_START([\"Error\"])
+    EXC_LOG[\"Log Error\"]
+    EXC_ALERT[\"Send Alert\"]
+    EXC_END([\"Error End\"])
+    EXC_START --> EXC_LOG --> EXC_ALERT --> EXC_END
+  end
 
-    <!-- ONE element per SAP CPI processing step, in execution order -->
-    <task id="Step_1" name="[Step name]">
-      <incoming>F_1</incoming>
-      <outgoing>F_2</outgoing>
-    </task>
-    <!-- ... more steps ... -->
+  %% Connections
+  SENDER -->|\"HTTPS / Timer / etc.\"| START
+  START --> STEP1
+  ...
+  END --> RECEIVER
+  STEP1 -->|\"on error\"| EXC_START
 
-    <!-- END EVENT: name must identify the Receiver system -->
-    <!-- e.g.  name="Send to SAP S/4HANA"  or  name="POST to SAP ERP" -->
-    <endEvent id="End_1" name="Send to [Target System]">
-      <incoming>F_N</incoming>
-    </endEvent>
+  %% Styling
+  classDef sender   fill:#1a3a5c,stroke:#4a7abf,color:#c8d8ee
+  classDef receiver fill:#1a3a5c,stroke:#4a7abf,color:#c8d8ee
+  classDef step     fill:#1a2640,stroke:#3a5f9f,color:#c8d8ee
+  classDef exc      fill:#2a1a1a,stroke:#8b3a3a,color:#eecfcf
+  classDef gw       fill:#1a2a1a,stroke:#3a7a3a,color:#c8eec8
 
-    <!-- Sequence flows — one per directed connection -->
-    <sequenceFlow id="F_1" sourceRef="Start_1" targetRef="Step_1"/>
-    <!-- ... -->
-
-    <!-- Exception Subprocess — ALWAYS include; SAP CPI requires it -->
-    <subProcess id="Exc_Sub" name="Exception Subprocess" triggeredByEvent="true">
-      <startEvent id="Exc_Start" name="Error Start">
-        <errorEventDefinition id="ErrDef_1"/>
-        <outgoing>EF_1</outgoing>
-      </startEvent>
-      <task id="Exc_Log" name="Log Error">
-        <incoming>EF_1</incoming>
-        <outgoing>EF_2</outgoing>
-      </task>
-      <task id="Exc_Alert" name="Send Alert">
-        <incoming>EF_2</incoming>
-        <outgoing>EF_3</outgoing>
-      </task>
-      <endEvent id="Exc_End" name="Error End">
-        <errorEventDefinition id="ErrEndDef_1"/>
-        <incoming>EF_3</incoming>
-      </endEvent>
-      <sequenceFlow id="EF_1" sourceRef="Exc_Start" targetRef="Exc_Log"/>
-      <sequenceFlow id="EF_2" sourceRef="Exc_Log"   targetRef="Exc_Alert"/>
-      <sequenceFlow id="EF_3" sourceRef="Exc_Alert"  targetRef="Exc_End"/>
-    </subProcess>
-
-    <!-- Boundary error event — attach to the main serviceTask most likely to fail -->
-    <boundaryEvent id="Bound_Err" attachedToRef="Step_1" cancelActivity="true">
-      <errorEventDefinition id="BoundErrDef_1"/>
-      <outgoing>BF_1</outgoing>
-    </boundaryEvent>
-    <sequenceFlow id="BF_1" sourceRef="Bound_Err" targetRef="Exc_Sub"/>
-
-  </process>
-</definitions>
+  class SENDER sender
+  class RECEIVER receiver
+  class START,END step
+  %% Apply 'step' to all processing nodes, 'exc' to exception nodes, 'gw' to gateways
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SAP CPI COMPONENT → BPMN ELEMENT MAPPING
+SAP CPI COMPONENT → MERMAID NODE MAPPING
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-SAP CPI Component          BPMN Element
-────────────────────────────────────────────────────────────────────
-Timer Start                <startEvent> + <timerEventDefinition/>
-HTTPS Sender               <startEvent>           name="[Sender] HTTPS Trigger"
-Generic Start              <startEvent>
-Content Modifier           <task>
-Filter                     <task>                 name="Filter: [condition]"
-Write Variables            <task>                 name="Write Variables"
-Groovy Script              <scriptTask>
-JavaScript Script          <scriptTask>
-Message Mapping            <task>                 name="Map: [source→target]"
-XSLT Mapping               <task>                 name="XSLT: [name]"
-XML/JSON Converter         <task>                 name="Convert: XML to JSON" (or reverse)
-Request-Reply + OData      <serviceTask>          name="Call [System]: [operation]"
-HTTP / SOAP / RFC Receiver <serviceTask>
-SFTP Adapter               <serviceTask>          name="SFTP: [read/write]"
-Router (XOR)               <exclusiveGateway>
-Router (AND/Parallel)      <parallelGateway>
-Splitter                   <task>                 name="Splitter: [type]"
-Gather / Aggregator        <task>                 name="Aggregator"
-Data Store op              <task>                 name="Data Store: [Write/Read]"
-CSRF Token Handler         <task>                 name="CSRF Token Handler"
-Process Call (LIP)         <callActivity calledElement="Proc_LIP_[name]"/>
-Exception Subprocess       <subProcess triggeredByEvent="true">
-Error Start Event          <startEvent> + <errorEventDefinition/>
-Error End Event            <endEvent>   + <errorEventDefinition/>
-Error Boundary Event       <boundaryEvent attachedToRef="[id]"> + <errorEventDefinition/>
-End                        <endEvent>             name="Send to [Target System]"
+SAP CPI Component          Mermaid Shape
+────────────────────────────────────────────────────
+Sender (system)            ID([\"Label\"])   — stadium
+Receiver (system)          ID([\"Label\"])   — stadium
+Timer / HTTPS Start        ID([\"Label\"])   — stadium
+End                        ID([\"Label\"])   — stadium
+Content Modifier           ID[\"Label\"]    — rectangle
+Groovy / Script            ID[\"Label\"]    — rectangle
+Message Mapping            ID[\"Label\"]    — rectangle
+XSLT Mapping               ID[\"Label\"]    — rectangle
+Request-Reply / OData      ID[\"Label\"]    — rectangle
+HTTP / SOAP / RFC call     ID[\"Label\"]    — rectangle
+CSRF Token Handler         ID[\"Label\"]    — rectangle
+Data Store operation       ID[\"Label\"]    — rectangle
+Router (XOR)               ID{\"Label\"}   — diamond
+Parallel gateway           ID{{\"Label\"}} — hexagon
+Exception Subprocess       subgraph block
+Error boundary             dashed edge labelled "on error"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STRICT RULES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. Use a SINGLE <process> — do NOT add <collaboration> or multiple <process> elements.
-2. The startEvent name MUST include the source system in square brackets, e.g. "[IFS Cloud] Timer Start".
-3. The final endEvent name MUST identify the target system, e.g. "Send to SAP S/4HANA".
-4. ALL element ids must be unique. Use descriptive snake_case (Task_SetHeaders, GW_Check, Srv_CallSAP).
-5. Every task/gateway/subprocess needs ≥1 <incoming> AND ≥1 <outgoing> — EXCEPT:
-   - <startEvent>: only <outgoing>   |  <endEvent>: only <incoming>   |  <boundaryEvent>: only <outgoing>
-6. Every <sequenceFlow> must reference element ids that exist in the same <process>.
-7. The exception subprocess MUST connect to the main flow via a <boundaryEvent> on a task.
-8. For Router (exclusiveGateway): emit one <sequenceFlow> per branch, each with a name attribute.
-   All branches must eventually reach an <endEvent>.
-9. For Local Integration Processes: add a separate <process id="Proc_LIP_[name]"> element and
-   reference it from a <callActivity calledElement="Proc_LIP_[name]"> in the main process.
-10. Do NOT output any <bpmndi:*> elements.
-11. Output ONLY the XML — start directly with <?xml version="1.0"
-12. NAME LENGTH RULE — CRITICAL: Every element name MUST be 3 words or fewer (max 20 characters).
-    Abbreviate aggressively. Examples of correct names:
-      GOOD: "Set Headers", "Map to BAPI", "Call S4HANA", "CSRF Token", "Log Error",
-            "Split Items", "Aggregate", "Check Status", "Fetch WO Data", "Convert XML"
-      BAD (too long): "Set HTTP Headers and Exchange Properties", "POST SAP MaintenanceOrder",
-                      "Extract SAP Maintenance Order Number from Response"
-    The startEvent and endEvent may include a system name in brackets but still keep to ≤25 chars total,
-    e.g. "[IFS Cloud] Timer" or "To SAP S/4HANA".
+1. Always include SENDER and RECEIVER nodes — they must be the first and last nodes in the flow.
+2. The SENDER node label MUST name the source system, e.g. "IFS Cloud\\nHTTPS Sender".
+3. The RECEIVER node label MUST name the target system, e.g. "SAP S/4HANA\\nOData".
+4. ALL node IDs must be unique short identifiers (no spaces): SENDER, START, SET_HDR, MAP_PAYLOAD, etc.
+5. The exception subprocess MUST be a subgraph connected to the main flow via an "on error" edge
+   from the step most likely to fail.
+6. Every edge between main-flow nodes must have a label only when it carries meaningful context
+   (e.g. router branches, adapter type from sender, error edge). Plain sequential steps need no label.
+7. Router (XOR) nodes must have one outgoing edge per branch, each with a condition label.
+8. NODE LABEL RULE — CRITICAL: Every node label MUST be 3 words or fewer (max 20 characters).
+   Abbreviate aggressively:
+     GOOD: "Set Headers", "Map Payload", "Call S/4HANA", "CSRF Token", "Log Error"
+     BAD:  "Set HTTP Headers and Exchange Properties", "POST SAP Maintenance Order"
+9. Use \\n inside labels to split long names across two lines (e.g. "IFS Cloud\\nHTTPS Sender").
+10. Output ONLY the Mermaid flowchart — start directly with: flowchart TD
 """
 
-_DIAGRAM_SUFFIX = "\n\nGenerate the BPMN 2.0 XML diagram for the SAP CPI iFlow described in the content above. Output ONLY the XML starting with <?xml — no preamble, no fences."
+_DIAGRAM_SUFFIX = "\n\nGenerate the Mermaid.js flowchart diagram for the SAP CPI iFlow described in the content above. Output ONLY the Mermaid syntax starting with 'flowchart TD' — no preamble, no fences."
 
 
 async def _stream_diagram(files: List[UploadFile], flow=None) -> AsyncGenerator[str, None]:
@@ -1422,7 +1377,7 @@ async def generate_step_detail(
     flow = json.loads(flow_json)
     ctx = f"NODE TO EXPLAIN: {node_label}\n"
     if diagram_syntax.strip():
-        ctx += f"\nFULL DIAGRAM CONTEXT (BPMN 2.0 XML):\n{diagram_syntax}\n"
+        ctx += f"\nFULL DIAGRAM CONTEXT (Mermaid flowchart):\n{diagram_syntax}\n"
     ctx += "\n"
     return StreamingResponse(
         _stream_analysis(files, flow, _STEP_DETAIL_SYSTEM, _STEP_DETAIL_SUFFIX,

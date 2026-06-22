@@ -132,33 +132,61 @@
   border-right: 1px solid var(--border);
 }
 
-/* bpmn-js fills this container */
-.bpmnCanvas {
+/* Mermaid SVG pan/zoom container */
+.diagInner {
   position: absolute;
   inset: 0;
-  width: 100%;
-  height: 100%;
+  overflow: hidden;
+  cursor: grab;
+}
+.diagInner:active { cursor: grabbing; }
+
+/* SVG inside must not constrain its parent */
+.diagInner :global(svg) {
+  display: block;
+  max-width: none !important;
+  height: auto;
+  transform-origin: 0 0;
 }
 
-/* ── bpmn-js global overrides ──────────────────────────────────────────── */
-:global(.djs-container) {
-  background: transparent !important;
+/* Mermaid node colour overrides */
+.diagInner :global(.node rect),
+.diagInner :global(.node circle),
+.diagInner :global(.node ellipse),
+.diagInner :global(.node polygon) {
+  fill: #1a2640 !important;
+  stroke: #3a5f9f !important;
 }
-/* Hide the bpmn-js palette and context pad (viewer-only — shouldn't appear, safety) */
-:global(.djs-palette),
-:global(.djs-context-pad) {
-  display: none !important;
+.diagInner :global(.node .label) { color: #c8d8ee !important; }
+.diagInner :global(.edgePath .path) { stroke: #4a7abf !important; stroke-width: 1.5px !important; }
+.diagInner :global(.edgeLabel) { background: transparent !important; color: #8fa2c8 !important; }
+.diagInner :global(.cluster rect) { fill: #111827 !important; stroke: #2a3f6f !important; rx: 6px !important; }
+
+/* Fullscreen inner */
+.fsDiagInner {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  cursor: grab;
 }
-/* Participant pool header label */
-:global(.djs-element .djs-visual text) {
-  font-family: 'Lexend', sans-serif !important;
-  font-size: 12px !important;
+.fsDiagInner:active { cursor: grabbing; }
+.fsDiagInner :global(svg) {
+  display: block;
+  max-width: none !important;
+  height: auto;
+  transform-origin: 0 0;
 }
-/* Ensure SVG fills the djs-container */
-:global(.djs-container svg) {
-  width: 100% !important;
-  height: 100% !important;
+.fsDiagInner :global(.node rect),
+.fsDiagInner :global(.node circle),
+.fsDiagInner :global(.node ellipse),
+.fsDiagInner :global(.node polygon) {
+  fill: #1a2640 !important;
+  stroke: #3a5f9f !important;
 }
+.fsDiagInner :global(.node .label) { color: #c8d8ee !important; }
+.fsDiagInner :global(.edgePath .path) { stroke: #4a7abf !important; stroke-width: 1.5px !important; }
+.fsDiagInner :global(.edgeLabel) { background: transparent !important; color: #8fa2c8 !important; }
+.fsDiagInner :global(.cluster rect) { fill: #111827 !important; stroke: #2a3f6f !important; }
 
 /* ── Loading bar (streaming phase) ─────────────────────────────────────── */
 .loadBar {

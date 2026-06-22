@@ -280,6 +280,13 @@ async def chat_complete_messages(
             }
             resource_group = os.environ.get("AICORE_RESOURCE_GROUP", "default")
             logger.info("chat_complete_messages POST %s  resource-group=%s  stream=True", url, resource_group)
+
+            segment_text = ""
+            model_id = ""
+            input_tokens = 0
+            output_tokens = 0
+            stop_reason = "end_turn"
+
             async with httpx.AsyncClient(timeout=LLM_TIMEOUT) as client:
                 async with client.stream("POST", url, json=payload, headers=headers) as resp:
                     if not resp.is_success:
@@ -295,15 +302,33 @@ async def chat_complete_messages(
                                 continue
                             data_str = line[6:]
                             if data_str == "[DONE]":
-                                return
+                                break
                             try:
                                 event = json.loads(data_str)
-                                if event.get("type") == "content_block_delta":
+                                etype = event.get("type")
+                                if etype == "message_start":
+                                    msg = event.get("message", {})
+                                    model_id = msg.get("model", "")
+                                    input_tokens = msg.get("usage", {}).get("input_tokens", 0)
+                                elif etype == "content_block_delta":
                                     text = event.get("delta", {}).get("text", "")
                                     if text:
+                                        segment_text += text
                                         yield text
+                                elif etype == "message_delta":
+                                    stop_reason = event.get("delta", {}).get("stop_reason") or stop_reason
+                                    output_tokens = event.get("usage", {}).get("output_tokens", 0)
                             except json.JSONDecodeError:
                                 continue
+
+            log_llm_invoke({
+                "role":    "assistant",
+                "content": [{"type": "text", "text": segment_text}],
+                "model":   model_id,
+                "stop_reason": stop_reason,
+                "usage":   {"input_tokens": input_tokens, "output_tokens": output_tokens},
+                "stream":  True,
+            })
 
         return _gen()
 

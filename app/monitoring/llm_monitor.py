@@ -36,7 +36,7 @@ _TYPE_L     = os.environ.get("LLM_USAGE_MONITOR_CALL_TYPE_L_INVOKE", "l_invoke")
 _TYPE_A     = os.environ.get("LLM_USAGE_MONITOR_CALL_TYPE_A_INVOKE", "a_invoke")
 
 
-def _post(call_type: str, metadata: str) -> None:
+def _post(call_type: str, payload: dict) -> None:
     """Synchronous POST — runs inside a daemon thread, never raises."""
     if not _BASE_URL:
         return
@@ -50,7 +50,7 @@ def _post(call_type: str, metadata: str) -> None:
                 "model_name":  _MODEL_NAME,
             },
             headers={"Authorization": f"Bearer {_API_KEY}"},
-            json={"metadata": metadata},
+            json={"metadata": payload},
             timeout=10,
         )
         if not resp.is_success:
@@ -59,16 +59,16 @@ def _post(call_type: str, metadata: str) -> None:
                 call_type, resp.status_code, resp.text[:300],
             )
         else:
-            logger.debug("LLM monitor POST ok [%s] — %d bytes", call_type, len(metadata))
+            logger.debug("LLM monitor POST ok [%s]", call_type)
     except Exception as exc:
         logger.warning("LLM monitor POST error [%s]: %s", call_type, exc)
 
 
-def _fire(call_type: str, metadata: str) -> None:
+def _fire(call_type: str, payload: dict) -> None:
     """Spawn a daemon thread for the POST so the caller is never blocked."""
     if not _BASE_URL:
         return
-    t = threading.Thread(target=_post, args=(call_type, metadata), daemon=True)
+    t = threading.Thread(target=_post, args=(call_type, payload), daemon=True)
     t.start()
 
 
@@ -127,12 +127,11 @@ def log_llm_invoke(response_data: dict) -> None:
     LangChain AIMessage shape the monitor service expects.
     """
     try:
-        shaped   = _to_ai_message_dict(response_data)
-        metadata = json.dumps(shaped, default=str)
+        payload = _to_ai_message_dict(response_data)
     except Exception as exc:
         logger.warning("LLM monitor serialisation error: %s", exc)
-        metadata = str(response_data)
-    _fire(_TYPE_L, metadata)
+        payload = {"raw": str(response_data)}
+    _fire(_TYPE_L, payload)
 
 
 def log_agent_invoke(result) -> None:
@@ -144,10 +143,11 @@ def log_agent_invoke(result) -> None:
     try:
         try:
             from langchain_core.load import dumps as lc_dumps
-            metadata = lc_dumps(result)
-        except ImportError:
-            metadata = json.dumps(result, default=str)
+            import json as _json
+            payload = _json.loads(lc_dumps(result))
+        except (ImportError, Exception):
+            payload = json.loads(json.dumps(result, default=str))
     except Exception as exc:
         logger.warning("LLM monitor agent serialisation error: %s", exc)
-        metadata = str(result)
-    _fire(_TYPE_A, metadata)
+        payload = {"raw": str(result)}
+    _fire(_TYPE_A, payload)
