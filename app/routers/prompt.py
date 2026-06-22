@@ -1,4 +1,4 @@
-import json
+﻿import json
 import logging
 import os
 from pathlib import Path
@@ -898,101 +898,158 @@ async def discover_flows(files: List[UploadFile] = File(...)):
 
 # ── Diagram endpoint ──────────────────────────────────────────────────────────
 
-_DIAGRAM_SYSTEM = """You are an SAP CPI integration architect generating a Mermaid.js flowchart diagram.
+_DIAGRAM_SYSTEM = """You are an SAP CPI integration architect generating a Mermaid.js flowchart.
 
-Analyse the provided integration documentation and output a Mermaid flowchart that represents
-the SAP CPI iFlow end-to-end, including the Sender, all processing steps, and the Receiver.
+Analyse the provided integration documentation and output a COMPLETE, valid Mermaid flowchart LR
+diagram covering every SAP CPI component found in the documents.
 
-Output ONLY the Mermaid syntax — no preamble, no explanation, no markdown fences.
-Start directly with: flowchart TD
+Output ONLY valid Mermaid flowchart syntax — no preamble, no explanation, no markdown fences.
+The very first line must be:  flowchart LR
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-REQUIRED STRUCTURE
+STEP 1 — COLOUR CLASS DEFINITIONS
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Immediately after "flowchart LR", emit these classDef lines exactly as shown:
 
-flowchart TD
-  %% Sender and Receiver as rounded rectangles
-  SENDER([\"Sender\\n[Source System]\"])
-  RECEIVER([\"Receiver\\n[Target System]\"])
+classDef adapter   fill:#102a4a,stroke:#4a9eff,stroke-width:1.5px,color:#d4dce8
+classDef event     fill:#0f1a2a,stroke:#60a5fa,stroke-width:1.5px,color:#a0c4ff
+classDef mapping   fill:#0f2a1a,stroke:#4ade80,stroke-width:1.5px,color:#bbf7d0
+classDef script    fill:#2a1e00,stroke:#f59e0b,stroke-width:1.5px,color:#fde68a
+classDef router    fill:#2a1600,stroke:#fb923c,stroke-width:1.5px,color:#fed7aa
+classDef splitter  fill:#1a0a2e,stroke:#a78bfa,stroke-width:1.5px,color:#ddd6fe
+classDef enrich    fill:#0a2a2e,stroke:#22d3ee,stroke-width:1.5px,color:#a5f3fc
+classDef datastore fill:#1a1a2a,stroke:#6b7280,stroke-width:1.5px,color:#d1d5db
+classDef security  fill:#0a1a2a,stroke:#94a3b8,stroke-width:1.5px,color:#cbd5e1
+classDef error     fill:#2a0a0a,stroke:#ef4444,stroke-width:1.5px,color:#fca5a5
+classDef proc      fill:#1e3f72,stroke:#4a9eff,stroke-width:1.5px,color:#d4dce8
 
-  %% Main flow nodes
-  START([\"Start\"])
-  STEP1[\"Step Name\"]
-  ...
-  END([\"End\"])
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 2 — TOP-LEVEL SUBGRAPH STRUCTURE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Always emit these four top-level subgraphs in this order:
 
-  %% Exception subprocess as a subgraph
-  subgraph EXC [\" Exception Subprocess\"]
-    EXC_START([\"Error\"])
-    EXC_LOG[\"Log Error\"]
-    EXC_ALERT[\"Send Alert\"]
-    EXC_END([\"Error End\"])
-    EXC_START --> EXC_LOG --> EXC_ALERT --> EXC_END
+  subgraph SOURCE["🖥 <actual source system name>"]
+    ... sender adapter node(s) ...
   end
 
-  %% Connections
-  SENDER -->|\"HTTPS / Timer / etc.\"| START
-  START --> STEP1
-  ...
-  END --> RECEIVER
-  STEP1 -->|\"on error\"| EXC_START
+  subgraph IFLOW["⚙️ SAP CPI iFlow"]
+    ... all CPI processing nodes in execution order ...
+    ... nested LOCAL INTEGRATION PROCESS subgraphs go here (see STEP 4) ...
+  end
 
-  %% Styling
-  classDef sender   fill:#1a3a5c,stroke:#4a7abf,color:#c8d8ee
-  classDef receiver fill:#1a3a5c,stroke:#4a7abf,color:#c8d8ee
-  classDef step     fill:#1a2640,stroke:#3a5f9f,color:#c8d8ee
-  classDef exc      fill:#2a1a1a,stroke:#8b3a3a,color:#eecfcf
-  classDef gw       fill:#1a2a1a,stroke:#3a7a3a,color:#c8eec8
+  subgraph TARGET["🎯 <actual target system name>"]
+    ... receiver adapter node(s) ...
+  end
 
-  class SENDER sender
-  class RECEIVER receiver
-  class START,END step
-  %% Apply 'step' to all processing nodes, 'exc' to exception nodes, 'gw' to gateways
+  subgraph EXCEPTION["🚨 Exception Subprocess"]
+    exc_start(["⚠️ Error Start"])
+    exc_log["📋 Log Error"]
+    exc_notify["📧 Send Alert"]
+    exc_end(["🔴 Error End"])
+    exc_start --> exc_log --> exc_notify --> exc_end
+  end
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-SAP CPI COMPONENT → MERMAID NODE MAPPING
+STEP 3 — NODE SHAPES, ICON PREFIXES AND CLASSES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Pick the correct shape, icon and class for every SAP CPI component:
 
-SAP CPI Component          Mermaid Shape
-────────────────────────────────────────────────────
-Sender (system)            ID([\"Label\"])   — stadium
-Receiver (system)          ID([\"Label\"])   — stadium
-Timer / HTTPS Start        ID([\"Label\"])   — stadium
-End                        ID([\"Label\"])   — stadium
-Content Modifier           ID[\"Label\"]    — rectangle
-Groovy / Script            ID[\"Label\"]    — rectangle
-Message Mapping            ID[\"Label\"]    — rectangle
-XSLT Mapping               ID[\"Label\"]    — rectangle
-Request-Reply / OData      ID[\"Label\"]    — rectangle
-HTTP / SOAP / RFC call     ID[\"Label\"]    — rectangle
-CSRF Token Handler         ID[\"Label\"]    — rectangle
-Data Store operation       ID[\"Label\"]    — rectangle
-Router (XOR)               ID{\"Label\"}   — diamond
-Parallel gateway           ID{{\"Label\"}} — hexagon
-Exception Subprocess       subgraph block
-Error boundary             dashed edge labelled "on error"
+COMPONENT                  SHAPE SYNTAX                               CLASS
+─────────────────────────────────────────────────────────────────────────────
+Start Event                id(["▶ Start"])                            event
+End Event                  id(["⏹ End"])                              event
+Timer / Scheduler          id(["⏱ Timer"])                            event
+Sender Adapter             id[/"📥 HTTPS Sender"/]                    adapter
+Receiver Adapter           id[/"📤 OData Receiver"/]                  adapter
+Content Modifier           id["✏️ Content Modifier"]                   proc
+Filter                     id["🔍 Filter"]                            proc
+Write Variables            id["📝 Write Variables"]                   proc
+Send Step                  id["📨 Send"]                              proc
+Message Mapping            id["📄 Message Mapping"]                   mapping
+XSLT Mapping               id["🔄 XSLT Mapping"]                      mapping
+Value Mapping              id["🗺 Value Mapping"]                     mapping
+XML-to-JSON Converter      id["🔄 XML to JSON"]                       mapping
+JSON-to-XML Converter      id["🔄 JSON to XML"]                       mapping
+CSV-to-XML Converter       id["🔄 CSV to XML"]                        mapping
+XML Validator              id["✅ XML Validator"]                      mapping
+EDI Validator              id["✅ EDI Validator"]                      mapping
+Groovy Script              id["📜 Groovy Script"]                     script
+JavaScript Script          id["📜 JS Script"]                         script
+Router                     id{"🔀 Router"}                            router
+Splitter (General)         id[/"⚡ Splitter"/]                        splitter
+Splitter (IDoc / CSV / Zip) id[/"⚡ IDoc Splitter"/]                  splitter
+Gather / Aggregator        id[/"🔗 Gather"/]                          splitter
+Multicast                  id{"📡 Multicast"}                         splitter
+Parallel Multicast         id{"📡 Parallel Multicast"}                splitter
+Request-Reply              id["🔁 Request-Reply"]                     enrich
+Content Enricher           id["➕ Content Enricher"]                  enrich
+Polling Consumer           id(["🔄 Polling Consumer"])                enrich
+Data Store Write           id[("🗄 Data Store Write")]                datastore
+Data Store Get             id[("🗄 Data Store Get")]                  datastore
+Data Store Select          id[("🗄 Data Store Select")]               datastore
+Data Store Delete          id[("🗄 Data Store Delete")]               datastore
+Process Call               id[["📞 Process Call"]]                    proc
+CSRF Token Handler         id["🛡 CSRF Token"]                        security
+Encryptor                  id["🔒 Encryptor"]                         security
+Decryptor                  id["🔓 Decryptor"]                         security
+PGP Signer                 id["🔏 PGP Signer"]                        security
+PGP Verifier               id["🔏 PGP Verifier"]                      security
+Message Digest             id["🔑 Message Digest"]                    security
+Error Start                id(["⚠️ Error Start"])                     error
+Error End                  id(["🔴 Error End"])                        error
+Error logging step         id["📋 Log Error"]                         error
+Alert / notify step        id["📧 Send Alert"]                        error
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-STRICT RULES
+STEP 4 — LOCAL INTEGRATION PROCESSES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. Always include SENDER and RECEIVER nodes — they must be the first and last nodes in the flow.
-2. The SENDER node label MUST name the source system, e.g. "IFS Cloud\\nHTTPS Sender".
-3. The RECEIVER node label MUST name the target system, e.g. "SAP S/4HANA\\nOData".
-4. ALL node IDs must be unique short identifiers (no spaces): SENDER, START, SET_HDR, MAP_PAYLOAD, etc.
-5. The exception subprocess MUST be a subgraph connected to the main flow via an "on error" edge
-   from the step most likely to fail.
-6. Every edge between main-flow nodes must have a label only when it carries meaningful context
-   (e.g. router branches, adapter type from sender, error edge). Plain sequential steps need no label.
-7. Router (XOR) nodes must have one outgoing edge per branch, each with a condition label.
-8. NODE LABEL RULE — CRITICAL: Every node label MUST be 3 words or fewer (max 20 characters).
-   Abbreviate aggressively:
-     GOOD: "Set Headers", "Map Payload", "Call S/4HANA", "CSRF Token", "Log Error"
-     BAD:  "Set HTTP Headers and Exchange Properties", "POST SAP Maintenance Order"
-9. Use \\n inside labels to split long names across two lines (e.g. "IFS Cloud\\nHTTPS Sender").
-10. Output ONLY the Mermaid flowchart — start directly with: flowchart TD
+For every Local Integration Process (LIP) found in the documents, add a nested subgraph
+INSIDE the IFLOW subgraph, and connect it via a Process Call node:
+
+  pc_lip_name[["📞 Process Call"]]
+  subgraph LIP_lip_name["📦 Local Process: <LIP name>"]
+    ... nodes that belong to this LIP in order ...
+  end
+  pc_lip_name --> lip_first_node
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 5 — EDGES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Use --> for all connections
+- Label adapter/channel edges with the protocol:  -->|"OData V2"| next_node
+  Allowed labels: "HTTPS", "OData V2", "OData V4", "REST", "SOAP", "RFC",
+                  "IDoc", "SFTP", "FTP", "Mail", "JDBC", "JMS", "AS2", "AS4",
+                  "SuccessFactors", "Ariba"
+- Splitter/Multicast fan-out — draw one edge per branch, reconverge at Gather:
+    split_node --> branch_a_step1
+    split_node --> branch_b_step1
+    branch_a_last --> gather_node
+    branch_b_last --> gather_node
+- Router branches — draw one edge per condition with a short label:
+    router_node -->|"Condition A"| path_a_node
+    router_node -->|"Default"| path_b_node
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+STEP 6 — CLASS ASSIGNMENT BLOCK
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+After ALL nodes and edges, emit one `class` assignment line per colour class used:
+  class node_a,node_b adapter
+  class node_c,node_d,node_e mapping
+  class exc_start,exc_end,exc_log,exc_notify error
+(Only include classes that actually have nodes assigned to them.)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+RULES
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Include EVERY significant component found in the documents
+- ALWAYS include the Exception Subprocess subgraph — it is a mandatory SAP CPI construct
+- Wrap each Local Integration Process in its own nested subgraph inside IFLOW
+- Node IDs: short snake_case, no spaces (e.g. cm_set_headers, rr_call_sap, ds_write_order)
+- Node labels: 2–5 words max; use \n for a second line if needed
+- Do NOT output anything outside of valid Mermaid syntax
 """
 
-_DIAGRAM_SUFFIX = "\n\nGenerate the Mermaid.js flowchart diagram for the SAP CPI iFlow described in the content above. Output ONLY the Mermaid syntax starting with 'flowchart TD' — no preamble, no fences."
+_DIAGRAM_SUFFIX = "\n\nGenerate the Mermaid.js flowchart LR diagram syntax for the iFlow described in the content above."
 
 
 async def _stream_diagram(files: List[UploadFile], flow=None) -> AsyncGenerator[str, None]:
