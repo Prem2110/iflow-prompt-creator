@@ -163,45 +163,64 @@
   background: transparent !important;
 }
 
-/* ── Mermaid node colour overrides ─────────────────────────────────────── */
+/* ── Mermaid node colour overrides (main + fullscreen) ─────────────────── */
 .diagInner :global(.node rect),
 .diagInner :global(.node ellipse),
 .diagInner :global(.node circle),
 .diagInner :global(.node polygon),
-.diagInner :global(.node path) {
+.diagInner :global(.node path),
+.fsDiagInner :global(.node rect),
+.fsDiagInner :global(.node ellipse),
+.fsDiagInner :global(.node circle),
+.fsDiagInner :global(.node polygon),
+.fsDiagInner :global(.node path) {
   fill: #1e3f72 !important;
   stroke: #4a9eff !important;
   stroke-width: 1.5px !important;
 }
 .diagInner :global(.nodeLabel),
 .diagInner :global(.node .label),
-.diagInner :global(.node span) {
+.diagInner :global(.node span),
+.fsDiagInner :global(.nodeLabel),
+.fsDiagInner :global(.node .label),
+.fsDiagInner :global(.node span) {
   color: #d4dce8 !important;
   fill: #d4dce8 !important;
 }
 .diagInner :global(.node text),
-.diagInner :global(.label text) {
+.diagInner :global(.label text),
+.fsDiagInner :global(.node text),
+.fsDiagInner :global(.label text) {
   fill: #d4dce8 !important;
 }
 .diagInner :global(.edgePath .path),
-.diagInner :global(.flowchart-link) {
+.diagInner :global(.flowchart-link),
+.fsDiagInner :global(.edgePath .path),
+.fsDiagInner :global(.flowchart-link) {
   stroke: #4a9eff !important;
   stroke-width: 1.5px !important;
 }
 .diagInner :global(.arrowheadPath),
-.diagInner :global(.marker path) {
+.diagInner :global(.marker path),
+.fsDiagInner :global(.arrowheadPath),
+.fsDiagInner :global(.marker path) {
   fill: #4a9eff !important;
   stroke: none !important;
 }
 .diagInner :global(.edgeLabel .label rect),
-.diagInner :global(.edgeLabel rect) {
+.diagInner :global(.edgeLabel rect),
+.fsDiagInner :global(.edgeLabel .label rect),
+.fsDiagInner :global(.edgeLabel rect) {
   fill: rgba(12,15,26,0.85) !important;
 }
 .diagInner :global(.edgeLabel span),
-.diagInner :global(.edgeLabel .label div) {
+.diagInner :global(.edgeLabel .label div),
+.fsDiagInner :global(.edgeLabel span),
+.fsDiagInner :global(.edgeLabel .label div) {
   color: #8fa2b6 !important;
 }
-.diagInner :global(.cluster rect) {
+.diagInner :global(.cluster rect),
+.fsDiagInner :global(.cluster rect) {
   fill: rgba(30,63,114,0.2) !important;
   stroke: rgba(74,158,255,0.35) !important;
 }
@@ -315,17 +334,41 @@
   background: #0c0f1a;
   border: 1px solid rgba(74,122,181,0.3);
   border-radius: 12px;
-  padding: 2.5rem 1.5rem 1.5rem;
   width: 94vw; max-width: 1600px;
-  max-height: 92vh;
-  overflow: auto;
+  height: 90vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
   box-shadow: 0 32px 96px rgba(0,0,0,0.75);
   animation: fsScale 0.18s ease;
 }
 @keyframes fsScale { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
 
+.fsHeader {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  padding: 0.45rem 0.65rem;
+  border-bottom: 1px solid rgba(74,122,181,0.15);
+  flex-shrink: 0;
+}
+
+.fsZoom {
+  font-size: 0.68rem; font-weight: 600; color: rgba(143,162,182,0.55);
+  font-family: 'Lexend', sans-serif; margin-right: 0.15rem;
+}
+
+.fsFitBtn {
+  display: inline-flex; align-items: center;
+  padding: 0.2rem 0.55rem;
+  background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); border-radius: 5px;
+  color: #8fa2b6; font-size: 0.67rem; font-weight: 600;
+  font-family: 'Lexend', sans-serif; cursor: pointer; transition: all 0.12s;
+}
+.fsFitBtn:hover { background: rgba(74,158,255,0.1); border-color: rgba(74,158,255,0.3); color: #4a9eff; }
+
 .fsClose {
-  position: absolute; top: 0.65rem; right: 0.75rem;
   display: flex; align-items: center; justify-content: center;
   width: 28px; height: 28px;
   background: rgba(255,255,255,0.07); border: 1px solid rgba(255,255,255,0.12);
@@ -334,9 +377,25 @@
 }
 .fsClose:hover { background: rgba(255,107,107,0.15); border-color: rgba(255,107,107,0.3); color: #ff6b6b; }
 
+.fsDiagWrap {
+  flex: 1;
+  min-height: 0;
+  position: relative;
+  overflow: hidden;
+  cursor: grab;
+  user-select: none;
+}
+.fsDiagWrap:active { cursor: grabbing; }
 
-.fsDiagram { display: flex; justify-content: center; align-items: flex-start; }
-.fsDiagram :global(svg) { width: 100%; height: auto; display: block; max-width: 100%; }
+.fsDiagInner {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  will-change: transform;
+  line-height: 0;
+}
+.fsDiagInner :global(svg) { display: block; background: transparent !important; }
 
 /* ── Markdown ──────────────────────────────────────────────────────────── */
 .markdownBody { font-family: 'Lexend', sans-serif; }

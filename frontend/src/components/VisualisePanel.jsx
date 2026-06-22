@@ -189,12 +189,19 @@ export default function VisualisePanel({ flow, files, onClose }) {
   const renderIdRef   = useRef(0);
   const abortDiagRef  = useRef(null);
 
-  // Zoom / pan
+  // Zoom / pan (main diagram)
   const [transform, setTransform] = useState({ scale: 1, x: 0, y: 0 });
   const txRef  = useRef({ scale: 1, x: 0, y: 0 });
   const drag   = useRef({ on: false, sx: 0, sy: 0, ox: 0, oy: 0 });
   const ctnRef = useRef(null);
   const svgRef = useRef(null);
+
+  // Zoom / pan (fullscreen overlay)
+  const [fsTransform, setFsTransform] = useState({ scale: 1, x: 0, y: 0 });
+  const fsTxRef  = useRef({ scale: 1, x: 0, y: 0 });
+  const fsDrag   = useRef({ on: false, sx: 0, sy: 0, ox: 0, oy: 0 });
+  const fsCtnRef = useRef(null);
+  const fsSvgRef = useRef(null);
 
   // Right panel
   const [tab,      setTab]     = useState("overview");
@@ -290,6 +297,25 @@ export default function VisualisePanel({ flow, files, onClose }) {
     setTransform(next);
   }, [displaySvg]);
 
+  // Auto-fit fullscreen when it opens
+  useEffect(() => {
+    if (!fullscreen) return;
+    const id = requestAnimationFrame(() => {
+      if (!fsCtnRef.current || !fsSvgRef.current) return;
+      const svgEl = fsSvgRef.current.querySelector("svg");
+      if (!svgEl) return;
+      const vb = svgEl.viewBox?.baseVal;
+      const sw = vb?.width || 0; const sh = vb?.height || 0;
+      const cw = fsCtnRef.current.clientWidth; const ch = fsCtnRef.current.clientHeight;
+      if (!sw || !sh || !cw || !ch) return;
+      const PAD = 40;
+      const scale = Math.min((cw - PAD) / sw, (ch - PAD) / sh);
+      const n = { scale, x: (cw - sw * scale) / 2, y: (ch - sh * scale) / 2 };
+      fsTxRef.current = n; setFsTransform(n);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [fullscreen]);
+
   // ── Node click handlers (after SVG is in DOM) ───────────────────────────────
 
   useEffect(() => {
@@ -356,6 +382,34 @@ export default function VisualisePanel({ flow, files, onClose }) {
     setTransform(t => { const n = { ...t, x: drag.current.ox + (e.clientX - drag.current.sx), y: drag.current.oy + (e.clientY - drag.current.sy) }; txRef.current = n; return n; });
   }
   function onMU() { drag.current.on = false; }
+
+  function onFsWheel(e) {
+    e.preventDefault();
+    const f = e.deltaY < 0 ? 1.12 : 0.88;
+    setFsTransform(t => { const n = { ...t, scale: Math.max(0.05, Math.min(10, t.scale * f)) }; fsTxRef.current = n; return n; });
+  }
+  function onFsMD(e) {
+    if (e.button !== 0) return; e.preventDefault();
+    fsDrag.current = { on: true, sx: e.clientX, sy: e.clientY, ox: fsTxRef.current.x, oy: fsTxRef.current.y };
+  }
+  function onFsMM(e) {
+    if (!fsDrag.current.on) return;
+    setFsTransform(t => { const n = { ...t, x: fsDrag.current.ox + (e.clientX - fsDrag.current.sx), y: fsDrag.current.oy + (e.clientY - fsDrag.current.sy) }; fsTxRef.current = n; return n; });
+  }
+  function onFsMU() { fsDrag.current.on = false; }
+  function fsFit() {
+    if (!fsCtnRef.current || !fsSvgRef.current) return;
+    const svgEl = fsSvgRef.current.querySelector("svg");
+    if (!svgEl) return;
+    const vb = svgEl.viewBox?.baseVal;
+    const sw = vb?.width || 0; const sh = vb?.height || 0;
+    const cw = fsCtnRef.current.clientWidth; const ch = fsCtnRef.current.clientHeight;
+    if (!sw || !sh || !cw || !ch) return;
+    const PAD = 40;
+    const scale = Math.min((cw - PAD) / sw, (ch - PAD) / sh);
+    const n = { scale, x: (cw - sw * scale) / 2, y: (ch - sh * scale) / 2 };
+    fsTxRef.current = n; setFsTransform(n);
+  }
 
   function downloadAsPng() {
     if (!svgRef.current) return;
@@ -581,8 +635,27 @@ export default function VisualisePanel({ flow, files, onClose }) {
       {fullscreen && (
         <div className={styles.fsOverlay} onClick={() => setFullscreen(false)}>
           <div className={styles.fsBox} onClick={e => e.stopPropagation()}>
-            <button className={styles.fsClose} onClick={() => setFullscreen(false)}>✕</button>
-            <div className={styles.fsDiagram} dangerouslySetInnerHTML={{ __html: displaySvg }}/>
+            <div className={styles.fsHeader}>
+              <span className={styles.fsZoom}>{Math.round(fsTransform.scale * 100)}%</span>
+              <button className={styles.fsFitBtn} onClick={fsFit}>Fit</button>
+              <button className={styles.fsClose} onClick={() => setFullscreen(false)}>✕</button>
+            </div>
+            <div
+              ref={fsCtnRef}
+              className={styles.fsDiagWrap}
+              onWheel={onFsWheel}
+              onMouseDown={onFsMD}
+              onMouseMove={onFsMM}
+              onMouseUp={onFsMU}
+              onMouseLeave={onFsMU}
+            >
+              <div
+                ref={fsSvgRef}
+                className={styles.fsDiagInner}
+                style={{ transform: `translate(${fsTransform.x}px,${fsTransform.y}px) scale(${fsTransform.scale})` }}
+                dangerouslySetInnerHTML={{ __html: displaySvg }}
+              />
+            </div>
           </div>
         </div>
       )}
