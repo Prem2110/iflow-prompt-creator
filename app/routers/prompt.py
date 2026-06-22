@@ -901,15 +901,12 @@ async def discover_flows(files: List[UploadFile] = File(...)):
 _DIAGRAM_SYSTEM = """You are an SAP CPI integration architect generating a BPMN 2.0 XML diagram.
 
 Analyse the provided integration documentation and output a complete, valid BPMN 2.0 XML document
-representing the SAP CPI iFlow as a BPMN Collaboration with three pools:
-  1. The Sender (source system)
-  2. SAP CPI Integration Process (all processing steps)
-  3. The Receiver (target system)
+representing the SAP CPI iFlow as a single BPMN process. Use descriptive event names to make
+Sender and Receiver systems visible in the diagram.
 
 Output ONLY valid BPMN 2.0 XML starting with <?xml version="1.0".
 No preamble, no explanation, no markdown fences.
-Do NOT include any <bpmndi:BPMNDiagram>, <bpmndi:BPMNShape>, or <bpmndi:BPMNEdge> elements —
-layout coordinates are computed automatically after generation.
+Do NOT include any <bpmndi:*> elements — layout coordinates are computed automatically.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 REQUIRED SKELETON
@@ -921,44 +918,33 @@ REQUIRED SKELETON
              targetNamespace="http://sap.com/cpi/iflow"
              id="Definitions_1">
 
-  <collaboration id="Collab_1">
-    <participant id="Part_Sender" name="[Source System] (Sender)" processRef="Proc_Sender"/>
-    <participant id="Part_CPI"    name="SAP CPI Integration Process" processRef="Proc_CPI"/>
-    <participant id="Part_Recv"   name="[Target System] (Receiver)" processRef="Proc_Recv"/>
-    <!-- messageFlow: connect sender participant → CPI start event, and CPI end event → receiver participant -->
-    <messageFlow id="MF_In"  sourceRef="Part_Sender" targetRef="Start_1"/>
-    <messageFlow id="MF_Out" sourceRef="End_1"       targetRef="Part_Recv"/>
-  </collaboration>
+  <process id="Proc_CPI" name="SAP CPI Integration Process" isExecutable="true">
 
-  <!-- Empty process stubs for sender and receiver pools -->
-  <process id="Proc_Sender" isExecutable="false"/>
-  <process id="Proc_Recv"   isExecutable="false"/>
-
-  <!-- Main SAP CPI integration process -->
-  <process id="Proc_CPI" isExecutable="true">
-
-    <startEvent id="Start_1" name="[Start label]">
+    <!-- START EVENT: name must identify the Sender system and trigger type -->
+    <!-- e.g.  name="[IFS Cloud] Timer Start"  or  name="[IFS Cloud] HTTPS Trigger" -->
+    <startEvent id="Start_1" name="[Source System + trigger]">
       <outgoing>F_1</outgoing>
-      <!-- For Timer Start add: <timerEventDefinition id="TimerDef_1"/> -->
+      <!-- For a timer trigger add: <timerEventDefinition id="TimerDef_1"/> -->
     </startEvent>
 
-    <!-- Add ONE element per SAP CPI step, in execution order -->
+    <!-- ONE element per SAP CPI processing step, in execution order -->
     <task id="Step_1" name="[Step name]">
       <incoming>F_1</incoming>
       <outgoing>F_2</outgoing>
     </task>
-
     <!-- ... more steps ... -->
 
-    <endEvent id="End_1" name="End">
+    <!-- END EVENT: name must identify the Receiver system -->
+    <!-- e.g.  name="Send to SAP S/4HANA"  or  name="POST to SAP ERP" -->
+    <endEvent id="End_1" name="Send to [Target System]">
       <incoming>F_N</incoming>
     </endEvent>
 
-    <!-- Sequence flows — one <sequenceFlow> per directed connection -->
+    <!-- Sequence flows — one per directed connection -->
     <sequenceFlow id="F_1" sourceRef="Start_1" targetRef="Step_1"/>
     <!-- ... -->
 
-    <!-- Exception Subprocess — ALWAYS include for SAP CPI iFlows -->
+    <!-- Exception Subprocess — ALWAYS include; SAP CPI requires it -->
     <subProcess id="Exc_Sub" name="Exception Subprocess" triggeredByEvent="true">
       <startEvent id="Exc_Start" name="Error Start">
         <errorEventDefinition id="ErrDef_1"/>
@@ -976,12 +962,12 @@ REQUIRED SKELETON
         <errorEventDefinition id="ErrEndDef_1"/>
         <incoming>EF_3</incoming>
       </endEvent>
-      <sequenceFlow id="EF_1" sourceRef="Exc_Start"  targetRef="Exc_Log"/>
-      <sequenceFlow id="EF_2" sourceRef="Exc_Log"    targetRef="Exc_Alert"/>
+      <sequenceFlow id="EF_1" sourceRef="Exc_Start" targetRef="Exc_Log"/>
+      <sequenceFlow id="EF_2" sourceRef="Exc_Log"   targetRef="Exc_Alert"/>
       <sequenceFlow id="EF_3" sourceRef="Exc_Alert"  targetRef="Exc_End"/>
     </subProcess>
 
-    <!-- Boundary error event — attach to a major serviceTask or the first task -->
+    <!-- Boundary error event — attach to the main serviceTask most likely to fail -->
     <boundaryEvent id="Bound_Err" attachedToRef="Step_1" cancelActivity="true">
       <errorEventDefinition id="BoundErrDef_1"/>
       <outgoing>BF_1</outgoing>
@@ -998,55 +984,49 @@ SAP CPI COMPONENT → BPMN ELEMENT MAPPING
 SAP CPI Component          BPMN Element
 ────────────────────────────────────────────────────────────────────
 Timer Start                <startEvent> + <timerEventDefinition/>
-HTTPS Sender / HTTP        <startEvent> (linked from Part_Sender via messageFlow)
+HTTPS Sender               <startEvent>           name="[Sender] HTTPS Trigger"
 Generic Start              <startEvent>
 Content Modifier           <task>
-Filter                     <task>  name="Filter: [condition]"
-Write Variables            <task>  name="Write Variables"
+Filter                     <task>                 name="Filter: [condition]"
+Write Variables            <task>                 name="Write Variables"
 Groovy Script              <scriptTask>
 JavaScript Script          <scriptTask>
-Message Mapping            <task>  name="Map: [source→target]"
-XSLT Mapping               <task>  name="XSLT: [name]"
-XML/JSON Converter         <task>  name="Convert: XML→JSON" (or similar)
-Request-Reply              <serviceTask>
-OData Receiver             <serviceTask>  name="Call [System]: [operation]"
-HTTP Receiver              <serviceTask>
-SOAP Receiver              <serviceTask>
-RFC Receiver               <serviceTask>
-SFTP Sender/Receiver       <serviceTask>
+Message Mapping            <task>                 name="Map: [source→target]"
+XSLT Mapping               <task>                 name="XSLT: [name]"
+XML/JSON Converter         <task>                 name="Convert: XML to JSON" (or reverse)
+Request-Reply + OData      <serviceTask>          name="Call [System]: [operation]"
+HTTP / SOAP / RFC Receiver <serviceTask>
+SFTP Adapter               <serviceTask>          name="SFTP: [read/write]"
 Router (XOR)               <exclusiveGateway>
 Router (AND/Parallel)      <parallelGateway>
-Splitter                   <task>  name="Splitter: [type]"
-Gather / Aggregator        <task>  name="Aggregator"
-Data Store Write/Read      <task>  name="Data Store: [op]"
-CSRF Token Handler         <task>  name="CSRF Token Handler"
-Process Call (LIP)         <callActivity calledElement="[process_id]"/>
+Splitter                   <task>                 name="Splitter: [type]"
+Gather / Aggregator        <task>                 name="Aggregator"
+Data Store op              <task>                 name="Data Store: [Write/Read]"
+CSRF Token Handler         <task>                 name="CSRF Token Handler"
+Process Call (LIP)         <callActivity calledElement="Proc_LIP_[name]"/>
 Exception Subprocess       <subProcess triggeredByEvent="true">
 Error Start Event          <startEvent> + <errorEventDefinition/>
 Error End Event            <endEvent>   + <errorEventDefinition/>
-Error Boundary Event       <boundaryEvent attachedToRef="[taskId]"> + <errorEventDefinition/>
-End                        <endEvent>
+Error Boundary Event       <boundaryEvent attachedToRef="[id]"> + <errorEventDefinition/>
+End                        <endEvent>             name="Send to [Target System]"
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 STRICT RULES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-1. ALL element ids must be unique across the entire document. Use descriptive snake_case
-   (e.g. Task_SetHeaders, GW_CheckStatus, Start_Timer, Srv_CallSAP).
-2. EVERY task/gateway/subprocess needs at least one <incoming> AND one <outgoing> — EXCEPT:
-   - <startEvent>: only <outgoing> (no <incoming>)
-   - <endEvent>: only <incoming> (no <outgoing>)
-   - <boundaryEvent>: only <outgoing> (no <incoming>)
-3. EVERY <sequenceFlow> must reference existing element ids within the SAME <process>.
-   Cross-process flows use <messageFlow> inside <collaboration>.
-4. <messageFlow> must be inside <collaboration> and reference participant ids or boundary elements.
-5. The exception subprocess MUST be connected to the main flow via a <boundaryEvent> on a task.
-6. For each Router (exclusiveGateway): draw one <sequenceFlow> per branch with a name attribute,
-   and all branches must converge at a subsequent gateway or end event.
-7. For Local Integration Processes: add a separate <process id="Proc_LIP_[name]"> and reference
-   it from a <callActivity calledElement="Proc_LIP_[name]"> in the main process.
-8. Element names: 3–6 words max. Be specific — include the adapter type or operation.
-9. Do NOT output any <bpmndi:*> elements.
-10. Output ONLY the XML document — start directly with <?xml version="1.0"
+1. Use a SINGLE <process> — do NOT add <collaboration> or multiple <process> elements.
+2. The startEvent name MUST include the source system in square brackets, e.g. "[IFS Cloud] Timer Start".
+3. The final endEvent name MUST identify the target system, e.g. "Send to SAP S/4HANA".
+4. ALL element ids must be unique. Use descriptive snake_case (Task_SetHeaders, GW_Check, Srv_CallSAP).
+5. Every task/gateway/subprocess needs ≥1 <incoming> AND ≥1 <outgoing> — EXCEPT:
+   - <startEvent>: only <outgoing>   |  <endEvent>: only <incoming>   |  <boundaryEvent>: only <outgoing>
+6. Every <sequenceFlow> must reference element ids that exist in the same <process>.
+7. The exception subprocess MUST connect to the main flow via a <boundaryEvent> on a task.
+8. For Router (exclusiveGateway): emit one <sequenceFlow> per branch, each with a name attribute.
+   All branches must eventually reach an <endEvent>.
+9. For Local Integration Processes: add a separate <process id="Proc_LIP_[name]"> element and
+   reference it from a <callActivity calledElement="Proc_LIP_[name]"> in the main process.
+10. Do NOT output any <bpmndi:*> elements.
+11. Output ONLY the XML — start directly with <?xml version="1.0"
 """
 
 _DIAGRAM_SUFFIX = "\n\nGenerate the BPMN 2.0 XML diagram for the SAP CPI iFlow described in the content above. Output ONLY the XML starting with <?xml — no preamble, no fences."
