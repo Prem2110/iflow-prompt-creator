@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState, useCallback } from "react
 import {
   ArrowLeft, GitBranch, Maximize2, Minimize2, RefreshCw,
   LayoutGrid, AlignLeft, ChevronLeft, MousePointer2,
-  Loader2, AlertCircle, Sun, Moon, Expand, Download,
+  Loader2, AlertCircle, Expand, Download,
 } from "lucide-react";
 import { badgeStyle } from "./dirBadge.js";
 import styles from "./VisualisePanel.module.css";
@@ -165,14 +165,21 @@ function MD({ text, loading }) {
 // ── Background presets ────────────────────────────────────────────────────────
 
 const BG_PRESETS = [
-  { id: "navy",     color: "#0c0f1a", label: "Navy"     },
-  { id: "black",    color: "#060606", label: "Black"    },
-  { id: "slate",    color: "#0d1117", label: "Slate"    },
-  { id: "midnight", color: "#04080f", label: "Midnight" },
-  { id: "charcoal", color: "#121210", label: "Charcoal" },
+  { id: "void",  color: "#060606", label: "Void"  },
+  { id: "navy",  color: "#0c0f1a", label: "Navy"  },
+  { id: "dusk",  color: "#131929", label: "Dusk"  },
+  { id: "cloud", color: "#eef1f8", label: "Cloud" },
+  { id: "white", color: "#ffffff", label: "White" },
 ];
-const DOT_GRID = "radial-gradient(circle, rgba(74,158,255,0.18) 1px, transparent 1px)";
-const BG_KEY   = "orbit-diag-bg";
+function getDotGrid(color) {
+  const r = parseInt(color.slice(1, 3), 16) || 0;
+  const g = parseInt(color.slice(3, 5), 16) || 0;
+  const b = parseInt(color.slice(5, 7), 16) || 0;
+  const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+  const dot = lum > 0.35 ? "rgba(60,80,140,0.12)" : "rgba(74,158,255,0.18)";
+  return `radial-gradient(circle, ${dot} 1px, transparent 1px)`;
+}
+const BG_KEY = "orbit-diag-bg";
 
 // ── Tab configs ───────────────────────────────────────────────────────────────
 
@@ -186,9 +193,15 @@ const TABS = [
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function VisualisePanel({ flow, files, onClose }) {
-  // Panel-local dark/light toggle — does NOT touch the global app theme
-  const [isDark, setIsDark] = useState(true);
-  function toggleTheme() { setIsDark(n => !n); }
+  // Mirror the global app theme (data-theme on <html>)
+  const [isDark, setIsDark] = useState(() => document.documentElement.dataset.theme !== "light");
+  useEffect(() => {
+    const obs = new MutationObserver(() =>
+      setIsDark(document.documentElement.dataset.theme !== "light")
+    );
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ["data-theme"] });
+    return () => obs.disconnect();
+  }, []);
 
   // Diagram canvas background
   const [diagBg, setDiagBg] = useState(() => localStorage.getItem(BG_KEY) || "#0c0f1a");
@@ -568,10 +581,6 @@ export default function VisualisePanel({ flow, files, onClose }) {
             ))}
           </div>
           <span className={styles.zoomPct}>{Math.round(transform.scale * 100)}%</span>
-          <div className={styles.ctrlDiv}/>
-          <button className={styles.themeBtn} onClick={toggleTheme} title={isDark ? "Switch to light mode" : "Switch to dark mode"}>
-            {isDark ? <Sun size={14}/> : <Moon size={14}/>}
-          </button>
         </div>
       </div>
 
@@ -580,7 +589,7 @@ export default function VisualisePanel({ flow, files, onClose }) {
 
         {/* ── Left: diagram canvas ── */}
         <div className={styles.diagArea} ref={ctnRef}
-          style={{ backgroundColor: diagBg, backgroundImage: DOT_GRID, backgroundSize: "24px 24px" }}
+          style={{ backgroundColor: diagBg, backgroundImage: getDotGrid(diagBg), backgroundSize: "24px 24px" }}
           onWheel={onWheel} onMouseDown={onMD} onMouseMove={onMM} onMouseUp={onMU} onMouseLeave={onMU}>
 
           {/* Animated top bar while streaming */}
@@ -671,7 +680,7 @@ export default function VisualisePanel({ flow, files, onClose }) {
             <div
               ref={fsCtnRef}
               className={styles.fsDiagWrap}
-              style={{ backgroundColor: diagBg, backgroundImage: DOT_GRID, backgroundSize: "24px 24px" }}
+              style={{ backgroundColor: diagBg, backgroundImage: getDotGrid(diagBg), backgroundSize: "24px 24px" }}
               onWheel={onFsWheel}
               onMouseDown={onFsMD}
               onMouseMove={onFsMM}

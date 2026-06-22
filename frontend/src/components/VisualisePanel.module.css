@@ -97,27 +97,6 @@
 .ctrlRegen:hover:not(:disabled)  { background: rgba(180,100,255,0.10) !important; border-color: rgba(180,100,255,0.3) !important; color: #b464ff !important; }
 .ctrlDl:hover:not(:disabled)     { background: rgba(16,185,129,0.10) !important; border-color: rgba(16,185,129,0.3) !important; color: #10b981 !important; }
 
-/* Round theme toggle — visually distinct from the rectangular ctrl buttons */
-.themeBtn {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  border-radius: 50%;
-  background: var(--surface-2);
-  border: 2px solid var(--border);
-  color: var(--text-2);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.15s;
-}
-.themeBtn:hover {
-  background: rgba(245,166,35,0.12);
-  border-color: #f5a623;
-  color: #f5a623;
-  transform: rotate(20deg);
-}
 
 .ctrlDiv { width: 1px; height: 20px; background: var(--border); flex-shrink: 0; }
 
