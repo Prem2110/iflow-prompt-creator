@@ -334,19 +334,6 @@
 }
 .fsClose:hover { background: rgba(255,107,107,0.15); border-color: rgba(255,107,107,0.3); color: #ff6b6b; }
 
-/* Action buttons inside fullscreen box */
-.fsActions {
-  display: flex; justify-content: flex-end; gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-.fsActBtn {
-  display: inline-flex; align-items: center; gap: 0.3rem;
-  padding: 0.25rem 0.7rem;
-  background: rgba(255,255,255,0.06); border: 1px solid rgba(74,122,181,0.3);
-  border-radius: 5px; color: #8fa2b6; font-size: 0.71rem; font-weight: 600;
-  font-family: 'Lexend', sans-serif; cursor: pointer; transition: all 0.12s;
-}
-.fsActBtn:hover { background: var(--accent-dim); border-color: rgba(74,158,255,0.35); color: var(--accent); }
 
 .fsDiagram { display: flex; justify-content: center; align-items: flex-start; }
 .fsDiagram :global(svg) { width: 100%; height: auto; display: block; max-width: 100%; }
