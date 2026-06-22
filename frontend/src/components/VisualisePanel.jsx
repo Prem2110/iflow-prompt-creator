@@ -176,8 +176,8 @@ function getDotGrid(color) {
   const g = parseInt(color.slice(3, 5), 16) || 0;
   const b = parseInt(color.slice(5, 7), 16) || 0;
   const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  const dot = lum > 0.35 ? "rgba(60,80,140,0.12)" : "rgba(255,255,255,0.12)";
-  return `radial-gradient(circle, ${dot} 1px, transparent 1px)`;
+  const dot = lum > 0.35 ? "rgba(30,50,120,0.22)" : "rgba(255,255,255,0.22)";
+  return `radial-gradient(circle, ${dot} 1.5px, transparent 1.5px)`;
 }
 const BG_KEY = "orbit-diag-bg";
 
@@ -589,7 +589,7 @@ export default function VisualisePanel({ flow, files, onClose }) {
 
         {/* ── Left: diagram canvas ── */}
         <div className={styles.diagArea} ref={ctnRef}
-          style={{ backgroundColor: diagBg, backgroundImage: getDotGrid(diagBg), backgroundSize: "24px 24px" }}
+          style={{ backgroundColor: diagBg, backgroundImage: getDotGrid(diagBg), backgroundSize: "20px 20px" }}
           onWheel={onWheel} onMouseDown={onMD} onMouseMove={onMM} onMouseUp={onMU} onMouseLeave={onMU}>
 
           {/* Animated top bar while streaming */}
@@ -680,7 +680,7 @@ export default function VisualisePanel({ flow, files, onClose }) {
             <div
               ref={fsCtnRef}
               className={styles.fsDiagWrap}
-              style={{ backgroundColor: diagBg, backgroundImage: getDotGrid(diagBg), backgroundSize: "24px 24px" }}
+              style={{ backgroundColor: diagBg, backgroundImage: getDotGrid(diagBg), backgroundSize: "20px 20px" }}
               onWheel={onFsWheel}
               onMouseDown={onFsMD}
               onMouseMove={onFsMM}
