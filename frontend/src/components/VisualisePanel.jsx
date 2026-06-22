@@ -176,7 +176,7 @@ function getDotGrid(color) {
   const g = parseInt(color.slice(3, 5), 16) || 0;
   const b = parseInt(color.slice(5, 7), 16) || 0;
   const lum = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
-  const dot = lum > 0.35 ? "rgba(60,80,140,0.12)" : "rgba(74,158,255,0.18)";
+  const dot = lum > 0.35 ? "rgba(60,80,140,0.12)" : "rgba(255,255,255,0.12)";
   return `radial-gradient(circle, ${dot} 1px, transparent 1px)`;
 }
 const BG_KEY = "orbit-diag-bg";
