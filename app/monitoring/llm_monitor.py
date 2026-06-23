@@ -57,7 +57,7 @@ def _post(call_type: str, payload: dict) -> None:
                 "model_name":  cfg["model_name"],
             },
             headers={"Authorization": f"Bearer {cfg['api_key']}"},
-            json={"metadata": payload},
+            json={"metadata": json.dumps(payload)},
             timeout=10,
             follow_redirects=True,
         )
