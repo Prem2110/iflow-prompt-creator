@@ -458,44 +458,38 @@ export default function VisualisePanel({ flow, files, onClose }) {
 
   // ── Download as PNG ─────────────────────────────────────────────────────────
 
-  function downloadAsPng() {
-    if (!mainWrapRef.current) return;
-    const liveSvg = mainWrapRef.current.querySelector("svg");
-    if (!liveSvg) return;
+  async function downloadAsPng() {
+    if (!diagramSyntax) return;
 
-    // Clone the SVG — CSS module !important rules don't survive serialization,
-    // so bake computed fill/stroke/stroke-width as inline styles before export.
-    const clone = liveSvg.cloneNode(true);
+    // Re-render from syntax for export — the live DOM SVG has a CSS
+    // pan/zoom transform on the root element that causes all content to
+    // appear tiny/offset in the exported image regardless of cloneNode tricks.
+    // A fresh render has no DOM state attached.
+    const mermaid = await getMermaid();
+    const exportSyntax = direction === "TD"
+      ? cleanSyntax(diagramSyntax).replace(/^flowchart\s+LR/m, "flowchart TD")
+      : cleanSyntax(diagramSyntax).replace(/^flowchart\s+TD/m, "flowchart LR");
 
-    // usePanZoom sets an inline CSS transform on the live SVG element for
-    // pan/zoom. Serializing that transform causes the content to be scaled
-    // and offset in the exported image (the canvas is full-size but the
-    // diagram appears tiny in the corner). Strip it so the export renders
-    // the full diagram at natural viewBox coordinates.
-    clone.style.transform = "";
-    clone.style.transformOrigin = "";
-    const SHAPE_TAGS = new Set(["rect","ellipse","circle","polygon","polyline","path","line","text","tspan"]);
-    const liveAll  = liveSvg.querySelectorAll("*");
-    const cloneAll = clone.querySelectorAll("*");
-    liveAll.forEach((liveEl, i) => {
-      const cloneEl = cloneAll[i];
-      if (!cloneEl || !SHAPE_TAGS.has(liveEl.tagName.toLowerCase())) return;
-      const cs = window.getComputedStyle(liveEl);
-      const fill = cs.getPropertyValue("fill");
-      const stroke = cs.getPropertyValue("stroke");
-      const sw = cs.getPropertyValue("stroke-width");
-      if (fill !== "") cloneEl.style.setProperty("fill", fill);
-      if (stroke !== "") cloneEl.style.setProperty("stroke", stroke);
-      if (sw !== "") cloneEl.style.setProperty("stroke-width", sw);
-    });
+    let svgHtml;
+    try {
+      const { svg } = await mermaid.render(`vp-dl-${Date.now()}`, exportSyntax);
+      svgHtml = processSvg(svg);
+    } catch { return; }
 
-    // Replace <foreignObject> (blocked by canvas security) with plain SVG <text>
-    clone.querySelectorAll("foreignObject").forEach(fo => {
+    // Parse into a DOM tree for clean manipulation (DOMParser produces
+    // a standalone document with no CSS context — no transforms applied).
+    const parser = new DOMParser();
+    const svgDoc = parser.parseFromString(svgHtml, "image/svg+xml");
+    const svgEl  = svgDoc.documentElement;
+    if (svgEl.tagName.toLowerCase() !== "svg") return;
+
+    // Replace <foreignObject> nodes (blocked by canvas tainting) with plain SVG <text>.
+    svgEl.querySelectorAll("foreignObject").forEach(fo => {
       const text = (fo.textContent || "").replace(/\s+/g, " ").trim();
       const x = parseFloat(fo.getAttribute("x") || "0") + parseFloat(fo.getAttribute("width") || "0") / 2;
       const y = parseFloat(fo.getAttribute("y") || "0") + parseFloat(fo.getAttribute("height") || "0") / 2;
       if (!text) { fo.remove(); return; }
-      const t = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      const t = svgDoc.createElementNS("http://www.w3.org/2000/svg", "text");
       t.setAttribute("x", String(x));
       t.setAttribute("y", String(y));
       t.setAttribute("text-anchor", "middle");
@@ -507,38 +501,41 @@ export default function VisualisePanel({ flow, files, onClose }) {
       fo.parentNode?.replaceChild(t, fo);
     });
 
-    const vb = liveSvg.viewBox?.baseVal;
-    const w = vb?.width || 1200;
-    const h = vb?.height || 600;
-    const scale = 2;
+    const vb = svgEl.viewBox?.baseVal;
+    const w  = (vb?.width  > 0 ? vb.width  : parseFloat(svgEl.getAttribute("width")  || "0")) || 1200;
+    const h  = (vb?.height > 0 ? vb.height : parseFloat(svgEl.getAttribute("height") || "0")) || 600;
+    const SCALE = 2;
     const canvas = document.createElement("canvas");
-    canvas.width = w * scale; canvas.height = h * scale;
+    canvas.width  = w * SCALE;
+    canvas.height = h * SCALE;
     const ctx = canvas.getContext("2d");
-    ctx.scale(scale, scale);
+    ctx.scale(SCALE, SCALE);
     ctx.fillStyle = diagBg;
     ctx.fillRect(0, 0, w, h);
 
-    const serialized = new XMLSerializer().serializeToString(clone);
-    const encoded = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(serialized)}`;
+    const serialized = new XMLSerializer().serializeToString(svgEl);
+    // Use Blob URL — more reliable than data URI for large complex SVGs.
+    const blobUrl = URL.createObjectURL(new Blob([serialized], { type: "image/svg+xml;charset=utf-8" }));
 
     const img = new Image();
     img.onload = () => {
       ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(blobUrl);
       const a = document.createElement("a");
       a.download = `${flow.name}-iflow.png`;
       a.href = canvas.toDataURL("image/png");
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
     };
     img.onerror = () => {
-      const blob = new Blob([serialized], { type: "image/svg+xml" });
-      const url = URL.createObjectURL(blob);
+      URL.revokeObjectURL(blobUrl);
+      const fallbackUrl = URL.createObjectURL(new Blob([serialized], { type: "image/svg+xml" }));
       const a = document.createElement("a");
       a.download = `${flow.name}-iflow.svg`;
-      a.href = url;
+      a.href = fallbackUrl;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      URL.revokeObjectURL(url);
+      URL.revokeObjectURL(fallbackUrl);
     };
-    img.src = encoded;
+    img.src = blobUrl;
   }
 
   function toggleDir() { setDirection(d => d === "LR" ? "TD" : "LR"); }
