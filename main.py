@@ -6,6 +6,9 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+from utils.destination_resolver import resolve_aicore_from_destination
+resolve_aicore_from_destination(os.getenv("AICORE_DESTINATION_NAME"))
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
