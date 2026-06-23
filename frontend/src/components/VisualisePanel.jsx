@@ -466,6 +466,14 @@ export default function VisualisePanel({ flow, files, onClose }) {
     // Clone the SVG — CSS module !important rules don't survive serialization,
     // so bake computed fill/stroke/stroke-width as inline styles before export.
     const clone = liveSvg.cloneNode(true);
+
+    // usePanZoom sets an inline CSS transform on the live SVG element for
+    // pan/zoom. Serializing that transform causes the content to be scaled
+    // and offset in the exported image (the canvas is full-size but the
+    // diagram appears tiny in the corner). Strip it so the export renders
+    // the full diagram at natural viewBox coordinates.
+    clone.style.transform = "";
+    clone.style.transformOrigin = "";
     const SHAPE_TAGS = new Set(["rect","ellipse","circle","polygon","polyline","path","line","text","tspan"]);
     const liveAll  = liveSvg.querySelectorAll("*");
     const cloneAll = clone.querySelectorAll("*");
