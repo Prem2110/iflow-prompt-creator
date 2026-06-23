@@ -407,6 +407,13 @@ export default function VisualisePanel({ flow, files, onClose }) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fullscreen, displaySvg]);
 
+  useEffect(() => {
+    if (!fullscreen) return;
+    const onKey = (e) => { if (e.key === "Escape") setFullscreen(false); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [fullscreen]);
+
   // ── Node click → step detail ────────────────────────────────────────────────
 
   useEffect(() => {
