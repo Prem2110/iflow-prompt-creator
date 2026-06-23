@@ -447,8 +447,6 @@ export default function VisualisePanel({ flow, files, onClose }) {
 
   useEffect(() => {
     genDiagram();
-    genTab("overview");
-    setTabDone({ overview: true });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -661,7 +659,7 @@ export default function VisualisePanel({ flow, files, onClose }) {
                 {activeStream.error && <div className={styles.rpErr}><AlertCircle size={14}/> {activeStream.error}</div>}
                 {!activeStream.text && activeStream.loading && <div className={styles.rpLoading}><Loader2 size={16} className={styles.spin}/> Generating…</div>}
                 {!activeStream.text && !activeStream.loading && !activeStream.error && (
-                  <div className={styles.rpEmpty}><p>Click a tab to generate content</p></div>
+                  <div className={styles.rpEmpty}><p>Click this tab to generate</p></div>
                 )}
                 <MD text={activeStream.text} loading={activeStream.loading}/>
               </>
