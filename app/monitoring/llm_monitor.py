@@ -27,31 +27,36 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
-# Read once at import time; module reloads pick up changes automatically on hot-reload.
-_BASE_URL   = os.environ.get("LLM_USAGE_MONITOR_BASE_URL", "").rstrip("/")
-_APP_ID     = os.environ.get("LLM_USAGE_MONITOR_APP_ID", "")
-_MODEL_NAME = os.environ.get("LLM_USAGE_MONITOR_MODEL_NAME", "")
-_API_KEY    = os.environ.get("LLM_USAGE_MONITOR_API_KEY", "")
-_TYPE_L     = os.environ.get("LLM_USAGE_MONITOR_CALL_TYPE_L_INVOKE", "l_invoke")
-_TYPE_A     = os.environ.get("LLM_USAGE_MONITOR_CALL_TYPE_A_INVOKE", "a_invoke")
+# Env vars are read at call time (not import time) so that CF cf set-env changes
+# take effect on restart without requiring a full redeploy.
+
+def _cfg():
+    """Return monitor config from environment, read fresh on every call."""
+    return {
+        "base_url":   os.environ.get("LLM_USAGE_MONITOR_BASE_URL", "").rstrip("/"),
+        "app_id":     os.environ.get("LLM_USAGE_MONITOR_APP_ID", ""),
+        "model_name": os.environ.get("LLM_USAGE_MONITOR_MODEL_NAME", ""),
+        "api_key":    os.environ.get("LLM_USAGE_MONITOR_API_KEY", ""),
+    }
 
 
 def _post(call_type: str, payload: dict) -> None:
     """Synchronous POST — runs inside a daemon thread, never raises."""
-    if not _BASE_URL:
-        logger.warning("LLM monitor: _BASE_URL not set — skipping %s", call_type)
+    cfg = _cfg()
+    if not cfg["base_url"]:
+        logger.debug("LLM monitor: BASE_URL not set — skipping %s", call_type)
         return
     try:
-        url = f"{_BASE_URL}/log-metadata/"
-        logger.info("LLM monitor → POST %s  call_type=%s  app_id=%s", url, call_type, _APP_ID)
+        url = f"{cfg['base_url']}/log-metadata/"
+        logger.info("LLM monitor → POST %s  call_type=%s  app_id=%s", url, call_type, cfg["app_id"])
         resp = httpx.post(
             url,
             params={
-                "app_id":      _APP_ID,
+                "app_id":      cfg["app_id"],
                 "call_type":   call_type,
-                "model_name":  _MODEL_NAME,
+                "model_name":  cfg["model_name"],
             },
-            headers={"Authorization": f"Bearer {_API_KEY}"},
+            headers={"Authorization": f"Bearer {cfg['api_key']}"},
             json={"metadata": payload},
             timeout=10,
             follow_redirects=True,
@@ -69,8 +74,7 @@ def _post(call_type: str, payload: dict) -> None:
 
 def _fire(call_type: str, payload: dict) -> None:
     """Spawn a daemon thread for the POST so the caller is never blocked."""
-    if not _BASE_URL:
-        logger.warning("LLM monitor: _BASE_URL not configured — %s skipped", call_type)
+    if not os.environ.get("LLM_USAGE_MONITOR_BASE_URL", ""):
         return
     logger.info("LLM monitor: firing %s", call_type)
     t = threading.Thread(target=_post, args=(call_type, payload), daemon=True)
@@ -82,11 +86,12 @@ def probe() -> None:
     Synchronous connectivity check — call once at startup to surface config
     problems early. Sends a minimal ping payload to the monitor.
     """
-    if not _BASE_URL:
+    cfg = _cfg()
+    if not cfg["base_url"]:
         logger.warning("LLM monitor: disabled (LLM_USAGE_MONITOR_BASE_URL not set)")
         return
-    logger.info("LLM monitor: probing %s/log-metadata/ …", _BASE_URL)
-    _post("probe", {"content": "startup-probe", "type": "ai", "model_name": _MODEL_NAME,
+    logger.info("LLM monitor: probing %s/log-metadata/ …", cfg["base_url"])
+    _post("probe", {"content": "startup-probe", "type": "ai", "model_name": cfg["model_name"],
                     "tool_calls": [], "invalid_tool_calls": [], "additional_kwargs": {},
                     "response_metadata": {}, "usage_metadata": {"input_tokens": 0,
                     "output_tokens": 0, "total_tokens": 0}})
@@ -115,7 +120,8 @@ def _to_ai_message_dict(response_data: dict) -> dict:
     else:
         content_str = str(raw_content)
 
-    model_name = response_data.get("model", _MODEL_NAME) or _MODEL_NAME
+    _default_model = os.environ.get("LLM_USAGE_MONITOR_MODEL_NAME", "")
+    model_name = response_data.get("model", _default_model) or _default_model
 
     return {
         "content":           content_str,
@@ -151,7 +157,7 @@ def log_llm_invoke(response_data: dict) -> None:
     except Exception as exc:
         logger.warning("LLM monitor serialisation error: %s", exc)
         payload = {"raw": str(response_data)}
-    _fire(_TYPE_L, payload)
+    _fire(os.environ.get("LLM_USAGE_MONITOR_CALL_TYPE_L_INVOKE", "l_invoke"), payload)
 
 
 def log_agent_invoke(result) -> None:
@@ -170,4 +176,4 @@ def log_agent_invoke(result) -> None:
     except Exception as exc:
         logger.warning("LLM monitor agent serialisation error: %s", exc)
         payload = {"raw": str(result)}
-    _fire(_TYPE_A, payload)
+    _fire(os.environ.get("LLM_USAGE_MONITOR_CALL_TYPE_A_INVOKE", "a_invoke"), payload)

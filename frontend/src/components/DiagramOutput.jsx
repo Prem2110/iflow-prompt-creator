@@ -111,8 +111,12 @@ export default function DiagramOutput({ diagram, loading, toast }) {
     const blob = new Blob([svg], { type: "image/svg+xml;charset=utf-8" });
     const url  = URL.createObjectURL(blob);
     const a    = document.createElement("a");
-    a.href = url; a.download = "iflow-diagram.svg"; a.click();
-    URL.revokeObjectURL(url);
+    a.href = url;
+    a.download = "iflow-diagram.svg";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 100);
   }
 
   return (

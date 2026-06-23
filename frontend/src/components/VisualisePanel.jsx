@@ -488,7 +488,7 @@ export default function VisualisePanel({ flow, files, onClose }) {
     const parser = new DOMParser();
     const svgDoc = parser.parseFromString(svgHtml, "image/svg+xml");
     const svgEl  = svgDoc.documentElement;
-    if (svgEl.tagName.toLowerCase() !== "svg") return;
+    if (svgEl.tagName.toLowerCase() !== "svg") { setDownloading(false); return; }
 
     // Replace <foreignObject> nodes (blocked by canvas tainting) with plain SVG <text>.
     svgEl.querySelectorAll("foreignObject").forEach(fo => {
@@ -525,24 +525,33 @@ export default function VisualisePanel({ flow, files, onClose }) {
     const blobUrl = URL.createObjectURL(new Blob([serialized], { type: "image/svg+xml;charset=utf-8" }));
 
     const img = new Image();
-    img.onload = () => {
-      ctx.drawImage(img, 0, 0, w, h);
-      URL.revokeObjectURL(blobUrl);
-      setDownloading(false);
-      const a = document.createElement("a");
-      a.download = `${flow.name}-iflow.png`;
-      a.href = canvas.toDataURL("image/png");
-      document.body.appendChild(a); a.click(); document.body.removeChild(a);
-    };
-    img.onerror = () => {
-      URL.revokeObjectURL(blobUrl);
-      setDownloading(false);
+    const triggerSvgFallback = () => {
       const fallbackUrl = URL.createObjectURL(new Blob([serialized], { type: "image/svg+xml" }));
       const a = document.createElement("a");
       a.download = `${flow.name}-iflow.svg`;
       a.href = fallbackUrl;
       document.body.appendChild(a); a.click(); document.body.removeChild(a);
-      URL.revokeObjectURL(fallbackUrl);
+      setTimeout(() => URL.revokeObjectURL(fallbackUrl), 100);
+    };
+
+    img.onload = () => {
+      ctx.drawImage(img, 0, 0, w, h);
+      URL.revokeObjectURL(blobUrl);
+      setDownloading(false);
+      try {
+        const a = document.createElement("a");
+        a.download = `${flow.name}-iflow.png`;
+        a.href = canvas.toDataURL("image/png");
+        document.body.appendChild(a); a.click(); document.body.removeChild(a);
+      } catch {
+        // Canvas tainted (cross-origin SVG content) — fall back to SVG download
+        triggerSvgFallback();
+      }
+    };
+    img.onerror = () => {
+      URL.revokeObjectURL(blobUrl);
+      setDownloading(false);
+      triggerSvgFallback();
     };
     img.src = blobUrl;
   }

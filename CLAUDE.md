@@ -61,7 +61,13 @@ frontend/src/
 
 ### SAP AI Core integration
 
-Authentication is OAuth2 client credentials. The token is cached in memory until 30 seconds before expiry. The LLM call uses the Anthropic Messages API format:
+At startup, `main.py` calls `utils/destination_resolver.py` which reads `AICORE_DESTINATION_NAME` and `VCAP_SERVICES`, authenticates against the BTP Destination Service, fetches the named destination, and injects the four `AICORE_*` credential env vars (`AICORE_BASE_URL`, `AICORE_CLIENT_ID`, `AICORE_CLIENT_SECRET`, `AICORE_AUTH_URL`) into the process. These are never stored in config files.
+
+On CF, `VCAP_SERVICES` is auto-injected by the platform when the `destination-service` is bound. Locally, paste the service key credentials into `.env` as a single-line JSON value.
+
+If `AICORE_DESTINATION_NAME` is not set or `VCAP_SERVICES` is absent, the resolver is skipped and the app falls back to any `AICORE_*` vars already in the environment (useful for local overrides / CI).
+
+After credential injection, `aicore.py` fetches a cached OAuth2 token and calls the LLM. The LLM call uses the Anthropic Messages API format:
 
 ```
 POST {AICORE_BASE_URL}/inference/deployments/{LLM_DEPLOYMENT_ID}/invoke
@@ -75,14 +81,14 @@ The timeout is configurable via `LLM_TIMEOUT` env var (default: 120 seconds).
 
 | Variable | Purpose |
 |---|---|
-| `AICORE_CLIENT_ID` | OAuth2 client ID |
-| `AICORE_CLIENT_SECRET` | OAuth2 client secret |
-| `AICORE_AUTH_URL` | Token endpoint base (appends `/oauth/token`) |
-| `AICORE_BASE_URL` | AI Core API base URL (includes `/v2`) |
-| `AICORE_RESOURCE_GROUP` | Resource group (default: `default`) |
+| `VCAP_SERVICES` | BTP Destination Service credentials (JSON). Auto-injected on CF; set from service key locally. |
+| `AICORE_DESTINATION_NAME` | Name of the BTP Destination that holds AI Core credentials (e.g. `GENAICORE`) |
+| `AICORE_RESOURCE_GROUP` | AI Core resource group (default: `default`) |
 | `LLM_DEPLOYMENT_ID` | Deployment ID for the Claude model |
 | `LLM_TIMEOUT` | LLM request timeout in seconds (default: 120) |
 | `CORS_ORIGINS` | Comma-separated allowed CORS origins (default: http://localhost:5173) |
+
+> `AICORE_CLIENT_ID`, `AICORE_CLIENT_SECRET`, `AICORE_AUTH_URL`, and `AICORE_BASE_URL` are resolved at runtime from the destination — never configure them directly.
 
 ## Adding file types
 
