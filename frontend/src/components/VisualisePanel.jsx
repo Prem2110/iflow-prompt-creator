@@ -297,6 +297,7 @@ export default function VisualisePanel({ flow, files, onClose }) {
   const [diagramError,   setDiagramError]   = useState("");
   const [direction,      setDirection]      = useState("LR");
   const [fullscreen,     setFullscreen]     = useState(false);
+  const [downloading,    setDownloading]    = useState(false);
   const renderIdRef  = useRef(0);
   const abortDiagRef = useRef(null);
 
@@ -459,7 +460,8 @@ export default function VisualisePanel({ flow, files, onClose }) {
   // ── Download as PNG ─────────────────────────────────────────────────────────
 
   async function downloadAsPng() {
-    if (!diagramSyntax) return;
+    if (!diagramSyntax || downloading) return;
+    setDownloading(true);
 
     // Re-render from syntax for export — the live DOM SVG has a CSS
     // pan/zoom transform on the root element that causes all content to
@@ -474,7 +476,7 @@ export default function VisualisePanel({ flow, files, onClose }) {
     try {
       const { svg } = await mermaid.render(`vp-dl-${Date.now()}`, exportSyntax);
       svgHtml = processSvg(svg);
-    } catch { return; }
+    } catch { setDownloading(false); return; }
 
     // Parse into a DOM tree for clean manipulation (DOMParser produces
     // a standalone document with no CSS context — no transforms applied).
@@ -521,6 +523,7 @@ export default function VisualisePanel({ flow, files, onClose }) {
     img.onload = () => {
       ctx.drawImage(img, 0, 0, w, h);
       URL.revokeObjectURL(blobUrl);
+      setDownloading(false);
       const a = document.createElement("a");
       a.download = `${flow.name}-iflow.png`;
       a.href = canvas.toDataURL("image/png");
@@ -528,6 +531,7 @@ export default function VisualisePanel({ flow, files, onClose }) {
     };
     img.onerror = () => {
       URL.revokeObjectURL(blobUrl);
+      setDownloading(false);
       const fallbackUrl = URL.createObjectURL(new Blob([serialized], { type: "image/svg+xml" }));
       const a = document.createElement("a");
       a.download = `${flow.name}-iflow.svg`;
@@ -565,8 +569,9 @@ export default function VisualisePanel({ flow, files, onClose }) {
             <RefreshCw size={13} className={isBusy ? styles.spin : ""}/>
             {isBusy ? "Generating…" : "Regenerate"}
           </button>
-          <button className={`${styles.ctrlBtn} ${styles.ctrlDl}`} onClick={downloadAsPng} disabled={!displaySvg} title="Download diagram as PNG">
-            <Download size={13}/> PNG
+          <button className={`${styles.ctrlBtn} ${styles.ctrlDl}`} onClick={downloadAsPng} disabled={!displaySvg || downloading} title="Download diagram as PNG">
+            {downloading ? <Loader2 size={13} className={styles.spin}/> : <Download size={13}/>}
+            {downloading ? "Exporting…" : "PNG"}
           </button>
           <div className={styles.ctrlDiv}/>
           <div className={styles.bgSwatches}>
