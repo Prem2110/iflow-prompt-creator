@@ -33,21 +33,49 @@ STRICT FORMATTING RULES:
     Create a new iFlow called "<iflow-name>" in the package "<package-name>".
   Derive both names from context; if not stated, invent appropriate technical names.
 - After the opening line, write a topology paragraph in plain English describing every connection
-  and the adapter used on each channel. Name every component. Example style:
-    "Sender is connected to Start via HTTPS Sender Adapter. Start is connected to Content Modifier
-     called "Normalize Payload". "Normalize Payload" is connected to Request Reply called
-     "Call Backend" via OData V2 Receiver Adapter. "Call Backend" is connected to End.
-     End is connected to Receiver "ERP System" via Mail Adapter."
+  and the adapter used on each channel. Name every component. Example styles:
+  Asynchronous (external receiver):
+    "Sender "IFS Cloud" is connected to Start via HTTPS Sender Adapter. Start is connected to
+     Content Modifier called "Normalize Payload". "Normalize Payload" is connected to Request
+     Reply called "Call Backend" via OData V2 Receiver Adapter targeting Receiver "SAP S/4HANA".
+     "Call Backend" is connected to End. End is connected to Receiver "ERP System" via Mail Adapter."
+  Synchronous Request-Reply (response back to caller on same channel):
+    "Sender "IFS Cloud" is connected to Start via HTTPS Sender Adapter. Start is connected to
+     Content Modifier called "Set Headers". "Set Headers" is connected to Request Reply called
+     "Create Record" via OData V2 Receiver Adapter targeting Receiver "SAP S/4HANA". "Create Record"
+     is connected to End. End returns the response to Receiver "IFS Cloud" via the same synchronous
+     HTTPS channel."
+- RECEIVER RULE: Every iFlow topology paragraph MUST end by naming at least one Receiver
+  participant explicitly. Apply the correct pattern based on the integration type:
+  • Synchronous Request-Reply (HTTPS Sender, response travels back on the same channel):
+    The originating Sender system is also the Receiver. State it explicitly at the end:
+    "End returns the response to Receiver "<SenderSystemName>" via the same synchronous HTTPS channel."
+  • External target (OData, HTTP Receiver, SFTP, Mail, IDoc, JDBC, JMS, RFC, AS2, etc.):
+    Name the target system as a Receiver participant:
+    "End is connected to Receiver "<TargetSystemName>" via <AdapterType> Adapter."
+  • Multiple receivers (Multicast, Router with different branches): Name each Receiver
+    participant separately with its own adapter.
+  The Receiver name must be the actual system name (e.g. "SAP S/4HANA", "IFS Cloud",
+  "File Server", "Email Server") — never leave the Receiver anonymous or implied.
+  Request Reply steps that call an external system mid-flow (e.g. to fetch a CSRF token or
+  look up master data) must also name their target system inline:
+  "... via OData V2 Receiver Adapter targeting Receiver "SAP S/4HANA" ..."
 - After the topology paragraph, write a "Component Configuration:" section with one numbered
   entry per component/channel. Each entry heading: "<Name> — <Type/Adapter>". Body: ONLY the
   configuration fields a developer sets in SAP CPI (URL, method, headers, XPath, namespace, etc.).
   No prose explanations, no general SAP advice, no full JSON bodies.
 - CONTENT MODIFIER RULE: For Content Modifier entries list ONLY the SAP CPI fields a developer
-  fills in: "Message Body" (the expression or XPath only — not an explanation of what it does),
-  "Exchange Properties" (name = simple-expression pairs), "Headers" (name = value pairs).
+  fills in: "Message Body", "Exchange Properties" (name = expression pairs), "Headers" (name = value pairs).
   Never explain what the payload is for or describe business logic — just the field values.
   Never set an Exchange Property to the value it already holds (e.g. PRNumber = ${property.PRNumber}
   is a no-op; omit it if a previous step already wrote that property).
+  For "Message Body", always state BOTH the expression type AND the expression value:
+    Type: Expression  Value: ${property.someValue}          ← Simple property/header reference
+    Type: XPath       Value: /Root/Element/text()           ← XML node extraction
+    Type: Groovy      Value: <inline script or resource ref> ← Script-built body
+    Type: JSONata     Value: $.<field>                       ← JSONata expression
+    Type: Constant    Value: <literal string>                ← Static/fixed body
+  Never write just the expression without the type label — a developer needs both to set the field in CPI.
 - DEDUPLICATION RULE: If the Exception Subprocess uses an adapter whose connection fields
   (Proxy Type, Authentication, Credential Name, Timeout, Content-Type) are the same as a
   main-flow adapter, do NOT repeat those shared fields. Instead write ONLY the fields that
@@ -64,6 +92,10 @@ STRICT FORMATTING RULES:
     Resource Path: <entity-set path, e.g. /A_EnterpriseProject or /ProjectCollection>
     Operation: <Create | Read | Update | Delete | Query | Merge | Patch>
     Query Options: <$filter / $select / $expand — omit only if truly not applicable>
+    Content-Type: <application/json | application/xml | application/atom+xml>
+    Connection Timeout: <value in ms, e.g. 30000>
+    Response Timeout: <value in ms, e.g. 60000>
+    Request Headers: <comma-separated header names to forward, e.g. x-csrf-token,Authorization — omit if none>
   Never list just the service name without the entity set and operation type.
 - PLACEHOLDER RULE: When a value (URL, entity name, auth credential, etc.) cannot be determined
   from the source documents, use a clearly labelled placeholder in angle brackets, e.g.
@@ -71,17 +103,23 @@ STRICT FORMATTING RULES:
 - HTTPS SENDER RULE: For every HTTPS Sender Adapter entry include:
     Address: <relative path, e.g. /http/receive-po>
     Authorization: <User Role | Client Certificate>
-    User Role: <ESBMessaging.send or custom role>
+    User Role: <ESBMessaging.send or custom role>  ← include only when Authorization = User Role
+    Keystore Alias: <alias-name>                   ← include only when Authorization = Client Certificate
     CSRF Protected: <true | false>
     Message Exchange Pattern: <Request-Reply | One-Way>
+  When Authorization = Client Certificate, omit the User Role line and add Keystore Alias instead.
 - HTTP RECEIVER RULE: For every HTTP Receiver Adapter entry include (note: in SAP CPI the
   receiver-side adapter is called "HTTP Receiver Adapter", not "HTTPS Receiver Adapter"):
     Address: <full URL including path>
     Proxy Type: <Internet | On-Premise>
     Method: <GET | POST | PUT | PATCH | DELETE>
     Authentication: <None | Basic | OAuth2 Client Credentials | Client Certificate | Principal Propagation>
+    Credential Name: <security-material alias>  ← omit only when Authentication = None
     Timeout: <value in ms, e.g. 60000>
     Content-Type: <application/json | application/xml | etc.>
+    Request Headers: <comma-separated header names to forward, e.g. Authorization,x-csrf-token — omit if none>
+    Query Parameters: <name=value pairs, e.g. $format=json — include only for GET requests, omit otherwise>
+    Send Body: <true | false>  ← set to false for GET and DELETE requests
 - SOAP RULE: For every SOAP Sender or Receiver Adapter entry include:
     Address: <endpoint URL or relative path>
     WSDL URL: <URL or local path — use <wsdl-url> placeholder if unknown>
@@ -123,7 +161,10 @@ Output structure:
 
 Create a new iFlow called "<iflow-name>" in the package "<package-name>".
 
-<Topology paragraph — plain English, every connection named with its adapter>
+<Topology paragraph — plain English, every connection named with its adapter.
+ MUST end with: "End is connected to Receiver "<SystemName>" via <Adapter>." OR
+ "End returns the response to Receiver "<SystemName>" via the same synchronous HTTPS channel."
+ — whichever fits the integration pattern. Receiver is NEVER omitted.>
 
 Component Configuration:
 
@@ -162,7 +203,7 @@ Important (Exception Subprocess):
 
 Rules:
 - Opening line with iFlow name and package is REQUIRED.
-- Topology paragraph is REQUIRED.
+- Topology paragraph is REQUIRED and MUST include at least one named Receiver participant.
 - "Component Configuration:" section with at least one numbered entry is REQUIRED.
 - "Important:" section is REQUIRED (max 5 bullets).
 - "Exception Subprocess:" section is OPTIONAL — include ONLY when the documents describe error/exception handling.
@@ -176,6 +217,12 @@ Output ONLY the prompt text — no preamble, no explanation, no markdown code fe
 The prompt MUST contain ALL of these sections:
 1. An opening line matching: Create a new iFlow called "<name>" in the package "<package>".
 2. A topology paragraph describing every connection and adapter in plain English.
+   The topology paragraph MUST end by naming at least one Receiver participant explicitly:
+   - Synchronous HTTPS (response back to caller): "End returns the response to Receiver
+     "<SenderSystemName>" via the same synchronous HTTPS channel."
+   - External target (OData, SFTP, Mail, IDoc, JDBC, JMS, etc.): "End is connected to
+     Receiver "<TargetSystemName>" via <AdapterType> Adapter."
+   - Multiple receivers: name each one separately. Never omit the Receiver.
 3. A "Component Configuration:" section with numbered entries (at least one starting with "1.").
 4. An "Important:" section with AT MOST 5 iFlow-specific constraint bullets.
 
