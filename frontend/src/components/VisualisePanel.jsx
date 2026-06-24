@@ -483,12 +483,14 @@ export default function VisualisePanel({ flow, files, onClose }) {
       svgHtml = processSvg(svg);
     } catch { setDownloading(false); return; }
 
-    // Parse into a DOM tree for clean manipulation (DOMParser produces
-    // a standalone document with no CSS context — no transforms applied).
+    // Parse into a DOM tree for clean manipulation.
+    // Use "text/html" (not "image/svg+xml") because Mermaid's DOMPurify pass
+    // converts <br/> → <br> inside <foreignObject> content; strict XML chokes
+    // on the bare <br>, returning a <parsererror> root instead of <svg>.
     const parser = new DOMParser();
-    const svgDoc = parser.parseFromString(svgHtml, "image/svg+xml");
-    const svgEl  = svgDoc.documentElement;
-    if (svgEl.tagName.toLowerCase() !== "svg") { setDownloading(false); return; }
+    const svgDoc = parser.parseFromString(svgHtml, "text/html");
+    const svgEl  = svgDoc.querySelector("svg");
+    if (!svgEl) { setDownloading(false); return; }
 
     // Replace <foreignObject> nodes (blocked by canvas tainting) with plain SVG <text>.
     svgEl.querySelectorAll("foreignObject").forEach(fo => {
